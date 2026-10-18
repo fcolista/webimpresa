@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Modifica anagrafica' if client else 'Nuova anagrafica' }} · WebImpresa{% endblock %}
+{% block content %}
+{% set source = form_values if form_values else client %}
+{% set kind = source.kind if source else 'person' %}
+<div class="page-heading">
+  <div><div class="eyebrow">Anagrafica condivisa</div><h1>{{ 'Modifica anagrafica' if client else 'Nuova anagrafica' }}</h1><p class="muted">I documenti conservano una copia storica dei dati e dei contatti.</p></div>
+  <a class="button subtle" href="{{ url_for('operations.clients') }}">Torna all'elenco</a>
+</div>
+<form method="post" class="card stack">
+  <input type="hidden" name="_csrf" value="{{ csrf() }}">
+  <section class="form-section">
+    <h2>Identità e dati fiscali</h2>
+    <div class="form-grid">
+      <label>Tipologia<select name="kind" id="client-kind" required><option value="person" {% if kind=='person' %}selected{% endif %}>Persona fisica</option><option value="company" {% if kind=='company' %}selected{% endif %}>Azienda</option></select></label>
+      <label id="person-name-label">Nome<input name="name" required maxlength="180" value="{{ source.name if source else '' }}"></label>
+      <label id="company-name-label">Ragione sociale (identità fiscale dell'azienda)<input name="company_name" maxlength="180" value="{{ source.name if source and kind=='company' else '' }}" required></label>
+      <label id="surname-label">Cognome<input name="surname" maxlength="180" value="{{ source.surname if source else '' }}"></label>
+      <label>Codice fiscale<input name="tax_code" maxlength="32" value="{{ source.tax_code if source else '' }}"></label>
+      <label>Partita IVA<input name="vat_number" maxlength="32" value="{{ source.vat_number if source else '' }}"></label>
+      <label class="span-2">Indirizzo e civico<input name="address" maxlength="300" value="{{ source.address if source else '' }}"></label>
+      <label>CAP<input name="postal_code" maxlength="20" value="{{ source.postal_code if source else '' }}"></label>
+      <label>Città<input name="city" maxlength="120" value="{{ source.city if source else '' }}"></label>
+      <label>Provincia<input name="province" maxlength="80" value="{{ source.province if source else '' }}"></label>
+      <label>Stato<input name="country" maxlength="100" value="{{ source.country if source else 'Italia' }}"></label>
+      <label id="person-email-label">Email<input name="email" type="email" maxlength="254" value="{{ source.email if source and kind=='person' else '' }}"></label>
+      <label id="person-phone-label">Telefono<input name="phone" maxlength="100" value="{{ source.phone if source and kind=='person' else '' }}"></label>
+      <label>PEC<input name="pec" type="email" maxlength="254" value="{{ source.pec if source else '' }}"></label>
+      <label>Codice destinatario<input name="recipient_code" maxlength="20" value="{{ source.recipient_code if source else '' }}"></label>
+    </div>
+  </section>
+  <fieldset id="company-contacts" class="contact-section">
+    <legend>Contatti dell'azienda</legend>
+    <p class="muted">Aggiungi le persone di riferimento e il loro ruolo, ad esempio amministrazione, contabilità o referente tecnico.</p>
+    <div id="contact-list" class="contact-list">
+      {% for contact in contacts %}
+      <div class="contact-row">
+        <label>Nome<input name="contact_first_name[]" maxlength="90" value="{{ contact.first_name }}" required></label>
+        <label>Cognome<input name="contact_last_name[]" maxlength="90" value="{{ contact.last_name }}" required></label>
+        <label>Ruolo<input name="contact_role[]" maxlength="100" value="{{ contact.role }}" placeholder="es. Contabilità" required></label>
+        <label>Email<input name="contact_email[]" type="email" maxlength="254" value="{{ contact.email }}"></label>
+        <label>Telefono<input name="contact_phone[]" maxlength="100" value="{{ contact.phone }}"></label>
+        <label>Cellulare<input name="contact_mobile[]" maxlength="100" value="{{ contact.mobile_phone }}"></label>
+        <button class="button danger compact remove-contact" type="button" aria-label="Rimuovi contatto">Rimuovi</button>
+      </div>
+      {% else %}
+      <div class="contact-row">
+        <label>Nome<input name="contact_first_name[]" maxlength="90" required></label>
+        <label>Cognome<input name="contact_last_name[]" maxlength="90" required></label>
+        <label>Ruolo<input name="contact_role[]" maxlength="100" placeholder="es. Contabilità" required></label>
+        <label>Email<input name="contact_email[]" type="email" maxlength="254"></label>
+        <label>Telefono<input name="contact_phone[]" maxlength="100"></label>
+        <label>Cellulare<input name="contact_mobile[]" maxlength="100"></label>
+        <button class="button danger compact remove-contact" type="button" aria-label="Rimuovi contatto">Rimuovi</button>
+      </div>
+      {% endfor %}
+    </div>
+    <button class="button secondary compact" type="button" id="add-contact">Aggiungi contatto</button>
+  </fieldset>
+  <label>Note interne<textarea name="notes" rows="3" maxlength="4000">{{ source.notes if source else '' }}</textarea></label>
+  <div class="form-actions">
+    <button class="button primary" type="submit">Salva anagrafica</button>
+  </div>
+</form>
+{% if client %}
+<section class="card"><h2>Storico documenti collegati</h2><div class="table-wrap"><table><thead><tr><th>Tipo</th><th>Numero</th><th>Data</th><th>Stato</th><th></th></tr></thead><tbody>{% for document in documents %}<tr><td>{{ document.kind }}</td><td>{{ document.number }}</td><td>{{ document.issue_date }}</td><td>{{ document.status }}</td><td>{% if document.kind=='Preventivo' %}<a href="{{ url_for('operations.quote_detail', quote_id=document.id) }}">Apri</a>{% else %}<a href="{{ url_for('operations.receipt_detail', receipt_id=document.id) }}">Apri</a>{% endif %}</td></tr>{% else %}<tr><td colspan="5" class="empty">Nessun documento collegato.</td></tr>{% endfor %}</tbody></table></div></section>
+{% endif %}
+<template id="contact-template"><div class="contact-row"><label>Nome<input name="contact_first_name[]" maxlength="90" required></label><label>Cognome<input name="contact_last_name[]" maxlength="90" required></label><label>Ruolo<input name="contact_role[]" maxlength="100" placeholder="es. Contabilità" required></label><label>Email<input name="contact_email[]" type="email" maxlength="254"></label><label>Telefono<input name="contact_phone[]" maxlength="100"></label><label>Cellulare<input name="contact_mobile[]" maxlength="100"></label><button class="button danger compact remove-contact" type="button" aria-label="Rimuovi contatto">Rimuovi</button></div></template>
+<script nonce="{{ g.csp_nonce }}">
+const kindField=document.getElementById('client-kind');
+const contactSection=document.getElementById('company-contacts');
+function updateClientFields(){
+  const company=kindField.value==='company';
+  document.getElementById('person-name-label').hidden=company;
+  document.getElementById('company-name-label').hidden=!company;
+  const personName=document.querySelector('#person-name-label input');
+  const companyName=document.querySelector('#company-name-label input');
+  personName.disabled=company;
+  personName.required=!company;
+  companyName.disabled=!company;
+  companyName.required=company;
+  document.getElementById('surname-label').hidden=company;
+  const surname=document.querySelector('#surname-label input');
+  surname.disabled=company;
+  surname.required=!company;
+  for(const id of ['person-email-label','person-phone-label']){
+    document.getElementById(id).hidden=company;
+    document.querySelector(`#${id} input`).disabled=company;
+  }
+  contactSection.hidden=!company;
+  for(const input of contactSection.querySelectorAll('input')) input.disabled=!company;
+}
+kindField.addEventListener('change',updateClientFields);
+updateClientFields();
+document.getElementById('add-contact').addEventListener('click',()=>document.getElementById('contact-list').append(document.getElementById('contact-template').content.cloneNode(true)));
+document.getElementById('contact-list').addEventListener('click',event=>{
+  if(event.target.closest('.remove-contact')){
+    const rows=document.querySelectorAll('.contact-row');
+    if(rows.length>1)event.target.closest('.contact-row').remove();
+  }
+});
+</script>
+{% endblock %}

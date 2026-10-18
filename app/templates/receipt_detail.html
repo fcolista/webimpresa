@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}{{ receipt.number }} · WebImpresa{% endblock %}
+{% block content %}
+<div class="page-heading">
+  <div><div class="eyebrow">Ricevuta occasionale · {{ receipt.status }}</div><h1>{{ receipt.number }}</h1><p class="muted">{{ client|client_label }} · {{ receipt.issue_date }}</p></div>
+  <div class="actions"><a class="button secondary" href="{{ url_for('operations.receipt_download', receipt_id=receipt.id) }}">Scarica PDF</a><a class="button secondary" href="{{ url_for('operations.send_document_email', kind='receipt', document_id=receipt.id) }}">Invia email</a>{% if receipt.status=='draft' %}<a class="button primary" href="{{ url_for('operations.receipt_edit', receipt_id=receipt.id) }}">Modifica bozza</a>{% endif %}</div>
+</div>
+<section class="card stack">
+  <div><h2>{{ receipt.subject }}</h2><p class="muted">Importi inseriti: {{ 'netti da ricevere dopo contributo e ritenuta' if (receipt.tax_config|from_json).get('amount_mode')=='net' else 'lordi, prima di contributo e ritenuta' }}. I rimborsi spese non vengono ricalcolati.</p></div>
+  <div class="table-wrap"><table><thead><tr><th>Descrizione</th><th>Tipo</th><th>Importo inserito</th></tr></thead><tbody>{% for line in lines %}<tr><td>{{ line.description }}</td><td>{{ 'Rimborso spese' if line.kind=='expense' else 'Prestazione' }}</td><td>€ {{ '%.2f'|format(line.amount_cents/100) }}</td></tr>{% endfor %}</tbody></table></div>
+  <div class="totals">
+    <div>Compenso lordo calcolato <strong>€ {{ '%.2f'|format(totals.services_cents/100) }}</strong></div>
+    <div>Rimborsi spese <strong>€ {{ '%.2f'|format(totals.expenses_cents/100) }}</strong></div>
+    <div>Contributo previdenziale <strong>€ {{ '%.2f'|format(totals.contribution_cents/100) }}</strong></div>
+    <div>Base ritenuta <strong>€ {{ '%.2f'|format(totals.withholding_base_cents/100) }}</strong></div>
+    <div>Ritenuta d'acconto <strong>€ {{ '%.2f'|format(totals.withholding_cents/100) }}</strong></div>
+    <div>Imposta di bollo <strong>€ {{ '%.2f'|format(totals.stamp_cents/100) }}</strong></div>
+    <div class="grand">Netto da corrispondere <strong>€ {{ '%.2f'|format(totals.net_due_cents/100) }}</strong></div>
+  </div>
+  {% if linked_quote %}<p class="notice">Collegata al preventivo accettato <a href="{{ url_for('operations.quote_detail', quote_id=linked_quote.id) }}">{{ linked_quote.number }}</a>. Il preventivo originale non è stato modificato.</p>{% endif %}
+  <div class="receipt-actions">
+    {% if receipt.status=='draft' %}<form method="post" action="{{ url_for('operations.receipt_issue', receipt_id=receipt.id) }}" data-confirm="Confermi di aver verificato i dati e di voler emettere la ricevuta? Dopo l'emissione il testo non sarà più modificabile."><input type="hidden" name="_csrf" value="{{ csrf() }}"><button class="button primary">Conferma emissione</button></form>{% else %}<p class="notice">Documento emesso: il testo non è modificabile.</p>{% endif %}
+    <form method="post" action="{{ url_for('operations.receipt_delete', receipt_id=receipt.id) }}" data-confirm="Eliminare definitivamente la ricevuta {{ receipt.number }}? L'operazione non si può annullare."><input type="hidden" name="_csrf" value="{{ csrf() }}"><button class="button danger">Elimina ricevuta</button></form>
+  </div>
+</section>
+{% endblock %}

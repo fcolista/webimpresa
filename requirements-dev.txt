@@ -1,0 +1,5 @@
+-r requirements.txt
+pytest==9.0.3
+pip-audit==2.9.0
+pypdf==6.19.0
+pyflakes==4.0.3

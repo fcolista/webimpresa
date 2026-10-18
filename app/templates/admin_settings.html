@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% block title %}Configurazione · WebImpresa{% endblock %}
+{% block content %}
+<div class="page-heading">
+  <div><div class="eyebrow">Amministrazione</div><h1>Configurazione globale</h1><p class="muted">Identità del fornitore, logo, aspetto e invio email.</p></div>
+</div>
+<form method="post" enctype="multipart/form-data" class="card settings-form">
+  <input type="hidden" name="_csrf" value="{{ csrf() }}">
+  <section class="settings-section">
+    <h2>Identità e aspetto</h2>
+    <div class="form-grid">
+      <label>Nome applicazione<input name="app_name" maxlength="80" value="{{ settings.get('app_name','WebImpresa') }}" required></label>
+      <label>Colore principale<input type="color" name="theme_primary" value="{{ settings.get('theme_primary','#174b71') }}"></label>
+      <label>Colore accento<input type="color" name="theme_accent" value="{{ settings.get('theme_accent','#2563eb') }}"></label>
+      <label>Colore sfondo<input type="color" name="theme_background" value="{{ settings.get('theme_background','#f4f6fa') }}"></label>
+      <div class="preview span-2"><span>Anteprima</span><strong>WebImpresa</strong><button type="button" class="button primary">Pulsante</button></div>
+    </div>
+    <div class="logo-settings">
+      <label>Logo aziendale <span class="muted">PNG o JPEG, massimo 1 MB</span><input type="file" name="logo_file" accept="image/png,image/jpeg"></label>
+      {% if has_provider_logo %}
+      <div class="logo-preview"><img src="{{ url_for('brand_logo') }}" alt="Logo attualmente configurato"><label class="check"><input type="checkbox" name="remove_logo" value="1"> Rimuovi il logo attuale</label></div>
+      {% endif %}
+    </div>
+    <div class="logo-settings">
+      <label>Firma grafica del prestatore <span class="muted">PNG o JPEG trasparente consigliato, massimo 1 MB</span><input type="file" name="signature_file" accept="image/png,image/jpeg"></label>
+      {% if has_provider_signature %}
+      <div class="logo-preview"><img src="{{ url_for('brand_signature') }}" alt="Firma attualmente configurata"><label class="check"><input type="checkbox" name="remove_signature" value="1"> Rimuovi la firma attuale</label></div>
+      {% endif %}
+    </div>
+    <p class="muted">La firma viene stampata in fondo alle nuove ricevute occasionali, insieme al nome del prestatore.</p>
+  </section>
+  <section class="settings-section">
+    <h2>Dati del fornitore</h2>
+    <p class="muted">Questi dati saranno riportati nei PDF dei preventivi e delle ricevute. I dati bancari vengono inseriti solo nelle ricevute.</p>
+    <div class="form-grid">
+      <label>Nome o ragione sociale<input name="provider_name" value="{{ settings.get('provider_name','') }}" maxlength="180"></label>
+      <label>Codice fiscale<input name="provider_tax_code" value="{{ settings.get('provider_tax_code','') }}" maxlength="32"></label>
+      <label>Partita IVA<input name="provider_vat" value="{{ settings.get('provider_vat','') }}" maxlength="32"></label>
+      <label>Indirizzo e civico<input name="provider_address" value="{{ settings.get('provider_address','') }}" maxlength="300"></label>
+      <label>CAP<input name="provider_postal_code" value="{{ settings.get('provider_postal_code','') }}" maxlength="20"></label>
+      <label>Città<input name="provider_city" value="{{ settings.get('provider_city','') }}" maxlength="120"></label>
+      <label>Provincia<input name="provider_province" value="{{ settings.get('provider_province','') }}" maxlength="80"></label>
+      <label>Stato<input name="provider_country" value="{{ settings.get('provider_country','Italia') }}" maxlength="100"></label>
+      <label>Email<input name="provider_email" type="email" value="{{ settings.get('provider_email','') }}" maxlength="254"></label>
+      <label>Telefono<input name="provider_phone" value="{{ settings.get('provider_phone','') }}" maxlength="100"></label>
+      <label>PEC<input name="provider_pec" type="email" value="{{ settings.get('provider_pec','') }}" maxlength="254"></label>
+      <label>Codice destinatario<input name="provider_recipient_code" value="{{ settings.get('provider_recipient_code','') }}" maxlength="20"></label>
+    </div>
+  </section>
+  <section class="settings-section">
+    <h2>Estremi per il pagamento</h2>
+    <p class="muted">I dati seguenti sono riportati esclusivamente sulle ricevute, mai sui preventivi.</p>
+    <div class="form-grid">
+      <label>Intestatario conto<input name="provider_account_holder" value="{{ settings.get('provider_account_holder','') }}" maxlength="180"></label>
+      <label>Banca<input name="provider_bank_name" value="{{ settings.get('provider_bank_name','') }}" maxlength="180"></label>
+      <label>IBAN<input name="provider_iban" value="{{ settings.get('provider_iban','') }}" maxlength="34" autocomplete="off"></label>
+      <label>BIC / SWIFT<input name="provider_bic" value="{{ settings.get('provider_bic','') }}" maxlength="11" autocomplete="off"></label>
+    </div>
+  </section>
+  <section class="settings-section">
+    <h2>Server SMTP</h2>
+    <div class="form-grid">
+      <label>Host<input name="smtp_host" value="{{ smtp.get('host','') }}" maxlength="253" autocomplete="off"></label>
+      <label>Porta<input name="smtp_port" type="number" min="1" max="65535" value="{{ smtp.get('port','') }}"></label>
+      <label>Sicurezza<select name="smtp_security"><option value="starttls" {% if smtp.get('security','starttls')=='starttls' %}selected{% endif %}>STARTTLS</option><option value="ssl" {% if smtp.get('security')=='ssl' %}selected{% endif %}>TLS implicito</option><option value="none" {% if smtp.get('security')=='none' %}selected{% endif %}>Non cifrato (solo se abilitato lato server)</option></select></label>
+      <label>Username SMTP<input name="smtp_username" value="{{ smtp.get('username','') }}" maxlength="254" autocomplete="username"></label>
+      <label>Password SMTP<input name="smtp_password" type="password" maxlength="512" autocomplete="new-password" placeholder="{{ 'Salvata (vuoto = invariata)' if has_smtp_password else 'Non configurata' }}"></label>
+      <label>Mittente email<input name="smtp_sender_email" type="email" value="{{ smtp.get('sender_email','') }}" maxlength="254"></label>
+      <label>Nome mittente<input name="smtp_sender_name" value="{{ smtp.get('sender_name','') }}" maxlength="180"></label>
+      <label>Rispondi a<input name="smtp_reply_to" type="email" value="{{ smtp.get('reply_to','') }}" maxlength="254"></label>
+      {% if has_smtp_password %}<label class="check"><input type="checkbox" name="clear_smtp_password" value="1"> Rimuovi la password salvata</label>{% endif %}
+    </div>
+    <p class="notice">La password SMTP è cifrata con Fernet usando la chiave esterna SMTP_FERNET_KEY. Non viene restituita in chiaro. TLS verifica sempre i certificati.</p>
+  </section>
+  <div class="form-actions"><button class="button primary" type="submit">Salva configurazione</button></div>
+</form>
+<section class="card">
+  <h2>Verifica invio SMTP</h2>
+  <form class="inline-form" method="post" action="{{ url_for('admin.test_smtp') }}"><input type="hidden" name="_csrf" value="{{ csrf() }}"><label>Email destinatario<input type="email" name="recipient" maxlength="254" required></label><button class="button secondary">Invia email di prova</button></form>
+</section>
+<script nonce="{{ g.csp_nonce }}">
+const form=document.querySelector('.settings-form');
+for(const name of ['theme_primary','theme_accent','theme_background']) form.elements[name].addEventListener('input',()=>{document.documentElement.style.setProperty('--primary',form.elements.theme_primary.value);document.documentElement.style.setProperty('--accent',form.elements.theme_accent.value);document.documentElement.style.setProperty('--page-bg',form.elements.theme_background.value)});
+</script>
+{% endblock %}

@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}Amministrazione · WebImpresa{% endblock %}
+{% block content %}
+<div class="page-heading"><div><div class="eyebrow">Solo amministrazione</div><h1>Pannello di sistema</h1><p class="muted">Gli account admin non hanno accesso ai dati operativi.</p></div><a class="button primary" href="{{ url_for('admin.settings') }}">Configurazione globale</a></div>
+<div class="stats"><div class="stat"><span>Account utente</span><strong>{{ counts.users }}</strong><a class="button secondary compact" href="{{ url_for('admin.users') }}">Gestisci →</a></div><div class="stat"><span>Database</span><strong>OK</strong><a class="button secondary compact" href="{{ url_for('admin.health') }}">Stato tecnico →</a></div></div>
+<section class="card"><h2>Configurazione e supporto</h2><p>Configura gli account, i dati del prestatore, i colori globali e il server SMTP. I dati amministrativi non consentono la consultazione dei contenuti operativi.</p><a class="button secondary" href="{{ url_for('admin.health') }}">Stato tecnico del sistema (JSON)</a></section>
+<section class="card stack">
+  <div><h2>Backup e ripristino</h2><p class="muted">Il backup include il database, con clienti, documenti, impostazioni, logo e firma. Non include il file <code>.env</code> o la chiave di cifratura SMTP: conservali separatamente e archivia le copie di backup in un luogo protetto.</p></div>
+  <form method="post" action="{{ url_for('admin.create_backup') }}"><input type="hidden" name="_csrf" value="{{ csrf() }}"><button class="button primary" type="submit">Crea e scarica backup</button></form>
+  <div>
+    <h3>Backup disponibili sul server</h3>
+    <div class="table-wrap"><table><thead><tr><th>File</th><th>Dimensione</th><th></th></tr></thead><tbody>
+    {% for backup in backups %}<tr><td>{{ backup.name }}</td><td>{{ (backup.size / 1024 / 1024)|round(2) }} MB</td><td><div class="row-actions"><a class="button secondary compact" href="{{ url_for('admin.download_backup', backup_name=backup.name) }}">Scarica</a><form method="post" action="{{ url_for('admin.delete_backup', backup_name=backup.name) }}" data-confirm="Eliminare definitivamente il backup {{ backup.name }}? Questa operazione non si può annullare."><input type="hidden" name="_csrf" value="{{ csrf() }}"><button class="button danger compact" type="submit">Elimina</button></form></div></td></tr>
+    {% else %}<tr><td colspan="3" class="empty">Non ci sono backup salvati sul server.</td></tr>{% endfor %}
+    </tbody></table></div>
+  </div>
+  <div>
+    <h3>Ripristina da un backup</h3>
+    <p class="muted">Il ripristino sostituisce tutti i dati attuali. Prima dell'operazione viene creato automaticamente un backup di sicurezza del database corrente. Il file deve essere un backup WebImpresa compatibile con questa versione.</p>
+    <form method="post" action="{{ url_for('admin.restore_backup') }}" enctype="multipart/form-data" class="stack">
+      <input type="hidden" name="_csrf" value="{{ csrf() }}">
+      <label>File di backup (.db)<input type="file" name="backup_file" accept=".db,application/x-sqlite3" required></label>
+      <label class="check"><input type="checkbox" name="confirm_restore" value="1" required> Confermo che il ripristino sovrascriverà il database attuale.</label>
+      <div><button class="button danger" type="submit">Ripristina database</button></div>
+    </form>
+  </div>
+</section>
+<section class="card"><h2>Registro amministrativo</h2><div class="table-wrap"><table><thead><tr><th>Operazione</th><th>ID account interessato</th><th>Data UTC</th></tr></thead><tbody>{% for log in logs %}<tr><td>{{ log.action }}</td><td>{{ log.target_id or '—' }}</td><td>{{ log.created_at }}</td></tr>{% else %}<tr><td colspan="3" class="empty">Nessuna operazione registrata.</td></tr>{% endfor %}</tbody></table></div></section>
+{% endblock %}

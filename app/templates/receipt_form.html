@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Modifica bozza ricevuta' if receipt else 'Nuova ricevuta' }} · WebImpresa{% endblock %}
+{% block content %}
+<div class="page-heading">
+  <div><div class="eyebrow">Ricevuta per prestazione occasionale · Bozza</div><h1>{{ 'Modifica bozza' if receipt else 'Nuova ricevuta' }}</h1><p class="muted">Questa applicazione non crea fatture ordinarie o fatture elettroniche.</p></div>
+  <a class="button subtle" href="{{ url_for('operations.receipts') }}">Torna alle ricevute</a>
+</div>
+<form method="post" class="card stack receipt-form">
+  <input type="hidden" name="_csrf" value="{{ csrf() }}">
+  <section class="form-section receipt-document-section">
+    <h2>Committente e dati della ricevuta</h2>
+    <div class="form-grid receipt-party-fields">
+      <label><span>Committente</span>
+        <select name="client_id" required>
+          <option value="">Seleziona cliente</option>
+          {% for c in clients %}<option value="{{ c.id }}" {% if receipt and receipt.client_id==c.id %}selected{% endif %}>{{ c|client_label }}</option>{% endfor %}
+        </select>
+      </label>
+      <label><span>Collega a un preventivo accettato <span class="muted">(facoltativo)</span></span>
+        <select name="quote_id">
+          <option value="">Nessun collegamento</option>
+          {% for accepted_quote in accepted_quotes %}<option value="{{ accepted_quote.id }}" data-withholding-rate="{{ (accepted_quote.tax_config|from_json).get('withholding_rate','20') }}" {% if receipt and receipt.quote_id==accepted_quote.id %}selected{% endif %}>{{ accepted_quote.number }} · {{ accepted_quote.client_snapshot|from_json|client_label }}</option>{% endfor %}
+        </select>
+      </label>
+    </div>
+    <div class="receipt-metadata-fields">
+      <label>Data<input class="receipt-date" type="date" name="issue_date" value="{{ issue_date }}" required></label>
+      <label>Numero ricevuta
+        <input class="receipt-number" name="number" value="{{ number }}" maxlength="20" pattern="[0-9]{4}-[0-9]{3,}" placeholder="es. 2026-001" aria-describedby="receipt-number-help">
+        <span id="receipt-number-help" class="field-help">Puoi assegnare un numero univoco dell'anno indicato; lascia vuoto per la numerazione automatica.</span>
+      </label>
+      <label class="receipt-subject">Oggetto<input name="subject" required maxlength="240" value="{{ receipt.subject if receipt else '' }}"></label>
+    </div>
+  </section>
+  <section class="form-section amount-mode-section">
+    <h2>Modalità di inserimento degli importi</h2>
+    <div class="amount-mode">
+      <label>Gli importi delle prestazioni sono
+        <select name="amount_mode" id="amount-mode">
+          <option value="gross" {% if cfg.get('amount_mode','gross')=='gross' %}selected{% endif %}>Lordo, prima di contributo e ritenuta</option>
+          <option value="net" {% if cfg.get('amount_mode')=='net' %}selected{% endif %}>Netto che desidero ricevere dopo contributo e ritenuta</option>
+        </select>
+      </label>
+      <p class="muted">Con “netto”, WebImpresa calcola il compenso lordo necessario. I rimborsi spese restano invariati.</p>
+    </div>
+  </section>
+  <section class="receipt-lines-section">
+    <div class="lines-heading">
+      <div><h2>Prestazioni e rimborsi</h2><p class="muted">Aggiungi una riga per ogni compenso o spesa rimborsata.</p></div>
+      <button class="button secondary compact" type="button" id="add-line">+ Aggiungi riga</button>
+    </div>
+    <div id="receipt-lines" class="receipt-line-list">
+      {% for line in lines %}
+      <div class="receipt-line-row">
+        <label class="description-field">Descrizione<input name="description[]" required maxlength="500" value="{{ line.description }}"></label>
+        <label>Importo inserito (€)<input name="amount[]" type="number" step="0.01" min="0" value="{{ '%.2f'|format(line.amount_cents/100) }}" required></label>
+        <label>Tipo<select name="kind[]"><option value="service" {% if line.kind=='service' %}selected{% endif %}>Prestazione</option><option value="expense" {% if line.kind=='expense' %}selected{% endif %}>Rimborso spese</option></select></label>
+        <button class="button danger compact remove-line" type="button" aria-label="Rimuovi riga">Rimuovi</button>
+      </div>
+      {% else %}
+      <div class="receipt-line-row">
+        <label class="description-field">Descrizione<input name="description[]" required maxlength="500"></label>
+        <label>Importo inserito (€)<input name="amount[]" type="number" step="0.01" min="0" value="0" required></label>
+        <label>Tipo<select name="kind[]"><option value="service">Prestazione</option><option value="expense">Rimborso spese</option></select></label>
+        <button class="button danger compact remove-line" type="button" aria-label="Rimuovi riga">Rimuovi</button>
+      </div>
+      {% endfor %}
+    </div>
+  </section>
+  <section class="form-section">
+    <h2>Parametri fiscali</h2>
+    <div class="form-grid receipt-tax-fields">
+      <label>Ritenuta d'acconto (%)<input id="receipt-withholding-rate" name="withholding_rate" type="number" min="0" max="100" step="0.01" value="{{ cfg.get('withholding_rate','20') }}"></label>
+      <label>Contributo previdenziale (%)<input name="contribution_rate" type="number" min="0" max="100" step="0.01" value="{{ cfg.get('contribution_rate','0') }}"></label>
+      <label>Bollo (€)<input name="stamp_amount" type="number" min="0" max="1000" step="0.01" value="{{ cfg.get('stamp_amount','2') }}"></label>
+      <label>Soglia bollo (€)<input name="stamp_threshold" type="number" min="0" step="0.01" value="{{ cfg.get('stamp_threshold','77.47') }}"></label>
+    </div>
+    <p class="notice">Le aliquote e le condizioni sono configurabili e vanno verificate in base al caso concreto. Il salvataggio crea una bozza; l'emissione richiede una conferma separata.</p>
+  </section>
+  <div class="form-actions"><button class="button primary" type="submit">Salva bozza</button></div>
+</form>
+<template id="line-template"><div class="receipt-line-row"><label class="description-field">Descrizione<input name="description[]" required maxlength="500"></label><label>Importo inserito (€)<input name="amount[]" type="number" step="0.01" min="0" value="0" required></label><label>Tipo<select name="kind[]"><option value="service">Prestazione</option><option value="expense">Rimborso spese</option></select></label><button class="button danger compact remove-line" type="button" aria-label="Rimuovi riga">Rimuovi</button></div></template>
+<script nonce="{{ g.csp_nonce }}">
+const list=document.getElementById('receipt-lines');
+document.getElementById('add-line').addEventListener('click',()=>list.append(document.getElementById('line-template').content.cloneNode(true)));
+list.addEventListener('click',event=>{if(event.target.closest('.remove-line')){const rows=list.querySelectorAll('.receipt-line-row');if(rows.length>1)event.target.closest('.receipt-line-row').remove()}});
+const quoteField=document.querySelector('select[name="quote_id"]');
+const withholdingField=document.getElementById('receipt-withholding-rate');
+quoteField.addEventListener('change',()=>{
+  const selected=quoteField.selectedOptions[0];
+  if(selected.value)withholdingField.value=selected.dataset.withholdingRate;
+});
+</script>
+{% endblock %}

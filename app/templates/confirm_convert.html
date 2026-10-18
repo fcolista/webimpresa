@@ -1,0 +1,3 @@
+{% extends "base.html" %}
+{% block title %}Da preventivo a bozza · WebImpresa{% endblock %}
+{% block content %}<section class="card narrow"><div class="eyebrow">Conversione non fiscale</div><h1>Crea una bozza di ricevuta?</h1><p>Il preventivo <strong>{{ quote.number }}</strong> resterà invariato. Verrà creata soltanto una bozza, che dovrai controllare e completare: dati fiscali, contributo, bollo e aliquota non vengono considerati automaticamente equivalenti a quelli del preventivo.</p><form method="post" class="actions"><input type="hidden" name="_csrf" value="{{ csrf() }}"><button class="button primary">Crea bozza da verificare</button><a class="button subtle" href="{{ url_for('operations.quote_detail', quote_id=quote.id) }}">Annulla</a></form></section>{% endblock %}

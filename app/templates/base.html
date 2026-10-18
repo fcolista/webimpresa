@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="it">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="{{ ui_settings.get('theme_primary', '#174b71') }}">
+    <title>{% block title %}{{ ui_settings.get('app_name', 'WebImpresa') }}{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='app.css') }}">
+    <style nonce="{{ g.csp_nonce }}">
+      :root {
+        --primary: {{ ui_settings.get('theme_primary', '#174b71') }};
+        --accent: {{ ui_settings.get('theme_accent', '#2563eb') }};
+        --page-bg: {{ ui_settings.get('theme_background', '#f4f6fa') }};
+      }
+    </style>
+</head>
+<body>
+<div class="shell">
+  {% if g.user %}
+  <header class="topbar">
+    <a class="brand" href="{{ url_for('admin.index' if g.user['role']=='admin' else 'operations.dashboard') }}">
+      {% if has_provider_logo %}<img src="{{ url_for('brand_logo') }}" alt="" class="brand-logo">{% endif %}
+      <span>{{ ui_settings.get('app_name', 'WebImpresa') }}</span>
+    </a>
+    <div class="top-actions">
+      <span class="user-label">{{ g.user['username'] }} · {{ 'Amministratore' if g.user['role']=='admin' else 'Utente' }}</span>
+      <form method="post" action="{{ url_for('auth.logout') }}"><input type="hidden" name="_csrf" value="{{ csrf() }}"><button class="button subtle" type="submit">Esci</button></form>
+    </div>
+  </header>
+  {% if g.user['role']=='user' %}
+  <nav class="nav" aria-label="Navigazione principale">
+    <a href="{{ url_for('operations.dashboard') }}">Dashboard</a>
+    <a href="{{ url_for('operations.clients') }}">Clienti</a>
+    <a href="{{ url_for('operations.quotes') }}">Preventivi</a>
+    <a href="{{ url_for('operations.receipts') }}">Ricevute</a>
+  </nav>
+  {% else %}
+  <nav class="nav" aria-label="Amministrazione">
+    <a href="{{ url_for('admin.index') }}">Sistema</a>
+    <a href="{{ url_for('admin.users') }}">Utenti</a>
+    <a href="{{ url_for('admin.settings') }}">Configurazione</a>
+  </nav>
+  {% endif %}
+  {% endif %}
+  <main class="content">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}<div class="flashes" aria-live="polite">{% for category,message in messages %}<div class="flash {{ category }}">{{ message }}</div>{% endfor %}</div>{% endif %}
+    {% endwith %}
+    {% block content %}{% endblock %}
+  </main>
+  <script src="{{ url_for('static', filename='app.js') }}" defer></script>
+  <footer class="footer">WebImpresa · Gestionale operativo</footer>
+</div>
+</body>
+</html>

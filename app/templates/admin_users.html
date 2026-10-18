@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}Utenti · WebImpresa{% endblock %}
+{% block content %}
+<div class="page-heading"><div><div class="eyebrow">Amministrazione</div><h1>Utenti e ruoli</h1><p class="muted">Ruoli disponibili: admin oppure utente. Non esistono ruoli aggiuntivi.</p></div></div>
+<section class="card"><h2>Crea account</h2><form method="post" class="form-grid"><input type="hidden" name="_csrf" value="{{ csrf() }}"><label>Username<input name="username" required minlength="3" maxlength="80" pattern="[A-Za-z0-9_.-]+"></label><label>Password iniziale<input type="password" name="password" required minlength="14" maxlength="256" autocomplete="new-password"></label><label>Ruolo<select name="role"><option value="user">Utente operativo</option><option value="admin">Admin</option></select></label><div class="form-actions"><button class="button primary">Crea account</button></div></form></section>
+<section class="card account-section">
+  <div><h2>Account esistenti</h2><p class="muted">Ruolo, accesso e credenziali possono essere aggiornati per ciascun account.</p></div>
+  <div class="account-list">
+    {% for u in users %}
+    <article class="account-card">
+      <div class="account-heading"><strong>{{ u.username }}{% if u.id==g.user['id'] %} <span class="muted">(tu)</span>{% endif %}</strong><span class="muted">Creato il {{ u.created_at }}</span></div>
+      <form class="account-edit-form" method="post" action="{{ url_for('admin.update_user', user_id=u.id) }}">
+        <input type="hidden" name="_csrf" value="{{ csrf() }}">
+        <label>Ruolo<select name="role"><option value="user" {% if u.role=='user' %}selected{% endif %}>Utente</option><option value="admin" {% if u.role=='admin' %}selected{% endif %}>Admin</option></select></label>
+        <label>Stato<select name="active"><option value="1" {% if u.active %}selected{% endif %}>Attivo</option><option value="0" {% if not u.active %}selected{% endif %}>Disabilitato</option></select></label>
+        <label class="account-password">Nuova password <span class="muted">(facoltativa)</span><input name="password" type="password" placeholder="Almeno 14 caratteri" minlength="14" maxlength="256" autocomplete="new-password"></label>
+        <button class="button secondary" type="submit">Salva modifiche</button>
+      </form>
+    </article>
+    {% else %}<p class="empty">Nessun account disponibile.</p>{% endfor %}
+  </div>
+</section>
+{% endblock %}

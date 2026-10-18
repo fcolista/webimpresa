@@ -1,0 +1,3 @@
+{% extends "base.html" %}
+{% block title %}Errore {{ code }} · WebImpresa{% endblock %}
+{% block content %}<section class="card narrow"><div class="eyebrow">Errore {{ code }}</div><h1>Non è stato possibile completare la richiesta</h1><p>{{ message }}</p><a class="button primary" href="{{ url_for('auth.index') }}">Torna alla home</a></section>{% endblock %}

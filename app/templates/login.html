@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block title %}Accesso · WebImpresa{% endblock %}
+{% block content %}
+<section class="auth-card">
+  <div class="eyebrow">Area riservata</div>
+  <h1>Accedi a WebImpresa</h1>
+  <p class="muted">Inserisci le credenziali del tuo account.</p>
+  <form method="post" class="stack">
+    <input type="hidden" name="_csrf" value="{{ csrf() }}">
+    <label>Username<input name="username" autocomplete="username" required maxlength="80" autofocus></label>
+    <label>Password<input name="password" type="password" autocomplete="current-password" required maxlength="256"></label>
+    <button class="button primary full" type="submit">Accedi</button>
+  </form>
+</section>
+{% endblock %}

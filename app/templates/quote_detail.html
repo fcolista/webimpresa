@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}{{ quote.number }} · WebImpresa{% endblock %}
+{% block content %}
+<div class="page-heading">
+  <div><div class="eyebrow">Preventivo · {{ quote.status }}</div><h1>{{ quote.number }}</h1><p class="muted">{{ client|client_label }} · {{ quote.issue_date }}{% if quote.valid_until %} · Valido fino al {{ quote.valid_until }}{% endif %}</p></div>
+  <div class="actions"><a class="button secondary" href="{{ url_for('operations.quote_download', quote_id=quote.id) }}">Scarica PDF</a><a class="button secondary" href="{{ url_for('operations.send_document_email', kind='quote', document_id=quote.id) }}">Invia email</a>{% if quote.status=='draft' %}<a class="button primary" href="{{ url_for('operations.quote_edit', quote_id=quote.id) }}">Modifica bozza</a>{% endif %}</div>
+</div>
+<section class="card">
+  <h2>Voci del preventivo</h2>
+  <p class="muted">I prezzi unitari sono netti (IVA esclusa); il totale della riga tiene conto dello sconto e non include l'IVA.</p>
+  <div class="table-wrap"><table><thead><tr><th>Descrizione</th><th>Quantità</th><th>Prezzo unitario netto</th><th>Totale netto</th></tr></thead><tbody>
+  {% for line in lines %}<tr><td>{{ line.description }}</td><td>{{ line.quantity }}</td><td>€ {{ '%.2f'|format(line.unit_price_cents/100) }}</td><td>€ {{ '%.2f'|format(line.net_cents/100) }}</td></tr>{% endfor %}
+  </tbody></table></div>
+  <div class="totals"><div>Imponibile <strong>€ {{ '%.2f'|format(totals.taxable_cents/100) }}</strong></div><div>IVA <strong>€ {{ '%.2f'|format(totals.vat_cents/100) }}</strong></div><div>Ritenuta d'acconto <strong>€ {{ '%.2f'|format(totals.withholding_cents/100) }}</strong></div><div class="grand">Totale preventivo <strong>€ {{ '%.2f'|format(totals.total_cents/100) }}</strong></div>{% if totals.withholding_cents %}<div>Al netto della ritenuta <strong>€ {{ '%.2f'|format(totals.net_due_cents/100) }}</strong></div>{% endif %}</div>
+  {% if quote.payment_terms %}<p><b>Condizioni di pagamento:</b> {{ quote.payment_terms }}</p>{% endif %}
+  {% if quote.notes %}<p><b>Note:</b> {{ quote.notes }}</p>{% endif %}{% if quote.commercial_terms %}<p><b>Condizioni commerciali:</b> {{ quote.commercial_terms }}</p>{% endif %}
+</section>
+<section class="card stack">
+  <div class="section-heading"><h2>Stato e accettazione</h2><div class="actions"><form method="post" action="{{ url_for('operations.quote_duplicate', quote_id=quote.id) }}"><input type="hidden" name="_csrf" value="{{ csrf() }}"><button class="button secondary">Duplica preventivo</button></form><form method="post" action="{{ url_for('operations.quote_delete', quote_id=quote.id) }}" data-confirm="Eliminare definitivamente il preventivo {{ quote.number }}? L'operazione non si può annullare. Le ricevute collegate saranno conservate ma scollegate dal preventivo."><input type="hidden" name="_csrf" value="{{ csrf() }}"><button class="button danger">Elimina preventivo</button></form></div></div>
+  {% if quote.status in ['draft','sent'] %}
+  <form method="post" enctype="multipart/form-data" action="{{ url_for('operations.quote_status', quote_id=quote.id) }}" class="acceptance-form">
+    <input type="hidden" name="_csrf" value="{{ csrf() }}">
+    <label>Nuovo stato<select name="status"><option value="sent">Inviato</option><option value="accepted">Accettato</option><option value="rejected">Rifiutato</option><option value="expired">Scaduto</option></select></label>
+    <label>Copia firmata <span class="muted">Facoltativa, solo PDF, massimo 1,5 MB</span><input type="file" name="signed_copy" accept="application/pdf"></label>
+    <button class="button primary" type="submit">Salva stato e accettazione</button>
+  </form>
+  {% endif %}
+  {% if quote.status=='accepted' %}
+    {% if acceptance %}
+    <p class="notice">Copia firmata archiviata il {{ acceptance.uploaded_at }}: <a href="{{ url_for('operations.quote_signed_copy', quote_id=quote.id) }}">{{ acceptance.original_filename }}</a></p>
+    {% else %}
+    <p class="notice">Preventivo accettato. Puoi archiviare qui la copia firmata ricevuta.</p>
+    {% endif %}
+    <form method="post" enctype="multipart/form-data" action="{{ url_for('operations.quote_upload_signed_copy', quote_id=quote.id) }}" class="acceptance-form">
+      <input type="hidden" name="_csrf" value="{{ csrf() }}">
+      <label>{{ 'Sostituisci la copia firmata' if acceptance else 'Carica la copia firmata' }} <span class="muted">PDF, massimo 1,5 MB</span><input type="file" name="signed_copy" accept="application/pdf" required></label>
+      <button class="button secondary" type="submit">Salva copia firmata</button>
+    </form>
+    <a class="button primary" href="{{ url_for('operations.quote_convert', quote_id=quote.id) }}">Crea bozza ricevuta collegata</a>
+  {% endif %}
+</section>
+{% endblock %}

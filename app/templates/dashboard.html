@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block title %}Dashboard · WebImpresa{% endblock %}
+{% block content %}
+<div class="page-heading"><div><div class="eyebrow">Area operativa</div><h1>Dashboard</h1><p class="muted">Clienti e documenti condivisi tra gli utenti operativi.</p></div><a class="button primary" href="{{ url_for('operations.quote_new') }}">Nuovo preventivo</a></div>
+<div class="stats">
+  <div class="stat"><span>Clienti attivi</span><strong>{{ stats.clients }}</strong><a class="button secondary compact" href="{{ url_for('operations.clients') }}">Apri anagrafica →</a></div>
+  <div class="stat"><span>Preventivi · {{ now().year }}</span><strong>{{ stats.quotes }}</strong><a class="button secondary compact" href="{{ url_for('operations.quotes') }}">Consulta →</a></div>
+  <div class="stat"><span>Ricevute · {{ now().year }}</span><strong>{{ stats.receipts }}</strong><a class="button secondary compact" href="{{ url_for('operations.receipts') }}">Consulta →</a></div>
+</div>
+<section class="card"><div class="section-heading"><h2>Attività recente</h2><a class="button secondary" href="{{ url_for('operations.quotes') }}">Tutti i preventivi</a></div>
+{% if recent %}<div class="table-wrap"><table><thead><tr><th>Documento</th><th>Numero</th><th>Data</th><th>Stato</th><th></th></tr></thead><tbody>
+{% for row in recent %}<tr><td>{{ row.kind }}</td><td>{{ row.number }}</td><td>{{ row.issue_date }}</td><td><span class="badge">{{ row.status }}</span></td><td>{% if row.kind=='Preventivo' %}<a href="{{ url_for('operations.quote_detail', quote_id=row.id) }}">Apri</a>{% else %}<a href="{{ url_for('operations.receipt_detail', receipt_id=row.id) }}">Apri</a>{% endif %}</td></tr>{% endfor %}
+</tbody></table></div>{% else %}<p class="empty">Non ci sono ancora documenti. Crea un preventivo per iniziare.</p>{% endif %}</section>
+{% endblock %}

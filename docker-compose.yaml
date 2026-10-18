@@ -1,0 +1,50 @@
+services:
+  webimpresa:
+    image: ghcr.io/fcolista/webimpresa:${WEBIMPRESA_VERSION:-dev}
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        APP_VERSION: ${WEBIMPRESA_VERSION:-dev}
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      DATABASE_PATH: /data/webimpresa.db
+      INSTANCE_PATH: /data
+      SESSION_COOKIE_SECURE: "${SESSION_COOKIE_SECURE:-true}"
+      SMTP_ALLOW_PLAINTEXT: "${SMTP_ALLOW_PLAINTEXT:-false}"
+      WEB_WORKERS: "${WEB_WORKERS:-2}"
+      WEB_THREADS: "${WEB_THREADS:-4}"
+    networks:
+      - web
+    ports:
+      - "127.0.0.1:${APP_PORT:-8183}:8000"
+    volumes:
+      - webimpresa_data:/data
+    read_only: true
+    tmpfs:
+      - /tmp:size=32m,mode=1777
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/healthz', timeout=3)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  webimpresa_data:
+
+networks:
+  web:
+    external: true
+    name: web

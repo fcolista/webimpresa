@@ -1,0 +1,8 @@
+{% extends "base.html" %}
+{% block title %}Invio email · WebImpresa{% endblock %}
+{% block content %}
+<section class="card narrow"><div class="eyebrow">Invio esplicito</div><h1>Invia {{ document_title }}</h1><p class="muted">Il PDF verrà allegato. Le credenziali SMTP non sono accessibili agli utenti operativi.</p><form method="post" class="stack"><input type="hidden" name="_csrf" value="{{ csrf() }}"><label>Destinatario<input type="email" name="recipient" value="{{ recipient }}" maxlength="254" required></label><label>Oggetto<input name="subject" value="{{ subject }}" maxlength="200" required></label><label>Messaggio<textarea name="body" rows="7" maxlength="5000">Buongiorno,
+in allegato {{ document_title }}.
+
+Cordiali saluti</textarea></label><div class="form-actions"><button class="button primary">Invia email con PDF</button><a class="button subtle" href="{{ url_for('auth.index') }}">Annulla</a></div></form></section>
+{% endblock %}

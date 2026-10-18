@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block title %}Clienti · WebImpresa{% endblock %}
+{% block content %}
+<div class="page-heading"><div><div class="eyebrow">Anagrafica condivisa</div><h1>Clienti</h1><p class="muted">Aziende con ragione sociale e contatti distinti; archivio condiviso per preventivi e ricevute.</p></div><a class="button primary" href="{{ url_for('operations.client_new') }}">Nuova anagrafica</a></div>
+<form class="search client-search" method="get">
+  <label class="search-term" for="q">Cerca nell'anagrafica<input id="q" name="q" value="{{ query }}" placeholder="Ragione sociale, contatto, codice fiscale, P. IVA o email"></label>
+  <label class="search-filter">Tipologia<select name="kind"><option value="">Tutte</option><option value="person" {% if kind=='person' %}selected{% endif %}>Persone fisiche</option><option value="company" {% if kind=='company' %}selected{% endif %}>Aziende</option></select></label>
+  <label class="search-sort">Ordina per<select name="sort"><option value="name" {% if sort=='name' %}selected{% endif %}>Ragione sociale / nome</option><option value="city" {% if sort=='city' %}selected{% endif %}>Città</option><option value="updated" {% if sort=='updated' %}selected{% endif %}>Ultima modifica</option></select></label>
+  <button class="button secondary" type="submit">Cerca</button>
+</form>
+<section class="card"><div class="table-wrap"><table><thead><tr><th>Ragione sociale / nome</th><th>Tipo</th><th>Codice fiscale / P.IVA</th><th>Contatti</th><th></th></tr></thead><tbody>
+{% for c in clients %}<tr><td><strong>{{ c|client_label }}</strong></td><td>{{ 'Azienda' if c.kind=='company' else 'Persona fisica' }}</td><td>{{ c.tax_code or '—' }}{% if c.vat_number %}<br><span class="muted">{{ c.vat_number }}</span>{% endif %}</td><td>{% if c.kind=='company' %}{{ c.contact_count }} {{ 'contatto' if c.contact_count==1 else 'contatti' }}{% else %}{{ c.email or '—' }}{% endif %}</td><td><div class="row-actions client-actions"><a class="button secondary compact" href="{{ url_for('operations.client_edit', client_id=c.id) }}">Modifica</a><form method="post" action="{{ url_for('operations.client_delete', client_id=c.id) }}" data-confirm="Eliminare l'anagrafica {{ c|client_label }}? Preventivi e ricevute esistenti resteranno conservati."><input type="hidden" name="_csrf" value="{{ csrf() }}"><button class="button danger compact" type="submit">Elimina</button></form></div></td></tr>{% else %}<tr><td colspan="5" class="empty">Nessun cliente trovato.</td></tr>{% endfor %}
+</tbody></table></div></section>
+{% endblock %}

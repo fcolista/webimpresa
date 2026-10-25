@@ -40,7 +40,7 @@ def quotes():
 ROW_FIELDS = ("description", "quantity", "unit_price", "discount", "vat", "withholding")
 FORM_FIELDS = (
     "client_id", "issue_date", "valid_until", "withholding_rate", "amount_mode",
-    "payment_terms", "notes", "commercial_terms",
+    "payment_terms", "notes", "commercial_terms", "contact_name",
 )
 
 
@@ -88,6 +88,7 @@ def _form_values(quote, form):
         return {
             "client_id": "", "issue_date": date.today().isoformat(), "valid_until": "",
             "withholding_rate": "0", "amount_mode": "gross", "payment_terms": "", "notes": "", "commercial_terms": "",
+            "contact_name": "",
         }
     config = json.loads(quote["tax_config"] or "{}")
     return {
@@ -99,6 +100,7 @@ def _form_values(quote, form):
         "payment_terms": quote["payment_terms"] or "",
         "notes": quote["notes"] or "",
         "commercial_terms": quote["commercial_terms"] or "",
+        "contact_name": json.loads(quote["client_snapshot"] or "{}").get("contact_name", ""),
     }
 
 

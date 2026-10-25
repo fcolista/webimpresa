@@ -42,7 +42,11 @@ def _snapshot(form):
     client_id = form.get("client_id", type=int)
     if client_id is None:
         raise ValueError("Seleziona un cliente.")
-    return client_id, _client_data(client_id)
+    data = _client_data(client_id)
+    contact_name = _limited(form.get("contact_name", ""), 180, "Referente")
+    if contact_name:
+        data["contact_name"] = contact_name
+    return client_id, data
 
 
 def _accepted_quote_id(value, client_id):

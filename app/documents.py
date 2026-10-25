@@ -102,12 +102,13 @@ def _document_header(story, title, number, client, provider, styles, line_kind, 
     ):
         if client.get(key):
             story.append(Paragraph(f"<b>{label}:</b> {_text(client[key])}", styles["BodyText"]))
-    contacts = client.get("contacts", []) if line_kind == "quote" else []
-    if contacts:
+    contact_name = client.get("contact_name", "")
+    contacts = client.get("contacts", [])
+    if not contact_name and contacts:
         first = contacts[0]
         contact_name = " ".join(v for v in (first.get("first_name"), first.get("last_name")) if v) or first.get("name", "")
-        if contact_name:
-            story.append(Paragraph(f"<b>Referente:</b> {_text(contact_name)}", styles["BodyText"]))
+    if contact_name:
+        story.append(Paragraph(f"<b>Referente:</b> {_text(contact_name)}", styles["BodyText"]))
     story.append(Spacer(1, 7 * mm))
 
 
@@ -139,24 +140,20 @@ def _pdf(title: str, number: str, client: dict, provider: dict, lines: list[dict
             ])
         widths = [76 * mm, 20 * mm, 36 * mm, 42 * mm]
     else:
-        tax_config = json.loads(document.get("tax_config", "{}")) if document else {}
-        amount_mode = tax_config.get("amount_mode", "gross")
-        amount_label = "Importo inserito (netto)" if amount_mode == "net" else "Importo inserito (lordo)"
-        rows = [["Descrizione", "Tipo", amount_label]]
+        rows = [["Descrizione", "Tipo"]]
         for line in lines:
             rows.append([
                 Paragraph(_text(line["description"]), styles["BodyText"]),
                 "Rimborso spese" if line.get("kind") == "expense" else "Prestazione",
-                _money(line.get("amount_cents", 0)),
             ])
-        widths = [106 * mm, 34 * mm, 34 * mm]
+        widths = [134 * mm, 40 * mm]
     table = Table(rows, colWidths=widths, repeatRows=1)
     table.setStyle(TableStyle([
         ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#174b71")),
         ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
         ("GRID", (0, 0), (-1, -1), 0.3, colors.HexColor("#d5dce5")),
         ("VALIGN", (0, 0), (-1, -1), "TOP"),
-        ("ALIGN", (1, 1), (-1, -1), "RIGHT"),
+        ("ALIGN", (1, 1), (-1, -1), "RIGHT" if line_kind == "quote" else "LEFT"),
         ("PADDING", (0, 0), (-1, -1), 7),
     ]))
     story.extend([table, Spacer(1, 7 * mm)])
@@ -182,8 +179,12 @@ def _pdf(title: str, number: str, client: dict, provider: dict, lines: list[dict
             ("Netto da corrispondere", "net_due_cents"),
         ):
             if key in totals:
+                if key == "withholding_cents" and not totals[key]:
+                    continue
                 amount = _money(totals[key])
                 if key == "withholding_cents":
+                    rate = totals.get("withholding_rate_bp", 0) / 100
+                    label = f"Ritenuta d'acconto ({rate:g}%)"
                     amount = f"- {amount}"
                 total_rows.append([label, amount])
         if totals.get("services_cents") is not None:
@@ -198,6 +199,10 @@ def _pdf(title: str, number: str, client: dict, provider: dict, lines: list[dict
     ]))
     story.append(totals_table)
 
+    gross_up = gross_up or (
+        line_kind == "receipt" and totals.get("amount_mode") == "net"
+        and bool(totals.get("withholding_cents", 0) or totals.get("contribution_cents", 0))
+    )
     if gross_up:
         story.extend([
             Spacer(1, 3 * mm),

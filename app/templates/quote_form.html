@@ -22,6 +22,7 @@
     <label class="quote-withholding-field">Ritenuta d'acconto (%)<input class="quote-withholding" name="withholding_rate" type="number" min="0" max="100" step="0.01" value="{{ values.withholding_rate }}"></label>
     <label>Prezzi delle voci con ritenuta<select name="amount_mode"><option value="gross" {% if values.amount_mode!='net' %}selected{% endif %}>Lordi, prima della ritenuta</option><option value="net" {% if values.amount_mode=='net' %}selected{% endif %}>Netti che desidero ricevere dopo la ritenuta</option></select></label>
   </div>
+  <div class="form-grid"><label>Referente<input name="contact_name" maxlength="180" value="{{ values.contact_name }}" placeholder="Predefinito: primo contatto del cliente"></label></div>
   <div class="section-heading"><h2>Voci del preventivo</h2><button class="button secondary" type="button" id="add-line">Aggiungi voce</button></div>
   <div id="quote-lines" class="line-list">
   {% for row in rows %}{{ line_row(row) }}{% endfor %}

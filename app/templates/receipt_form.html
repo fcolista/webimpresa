@@ -32,6 +32,9 @@
         </select>
       </label>
     </div>
+    <div class="form-grid">
+      <label>Referente<input name="contact_name" maxlength="180" value="{{ values.contact_name }}" placeholder="Predefinito: primo contatto del cliente"></label>
+    </div>
     <div class="receipt-metadata-fields">
       <label>Data<input class="receipt-date" type="date" name="issue_date" value="{{ values.issue_date }}" required></label>
       <label>Numero ricevuta

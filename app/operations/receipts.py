@@ -80,19 +80,20 @@ def _receipt_values(receipt, form):
             {
                 "client_id": form.get("client_id", ""), "quote_id": form.get("quote_id", ""),
                 "subject": form.get("subject", ""), "issue_date": form.get("issue_date", ""),
-                "number": form.get("number", ""),
+                "number": form.get("number", ""), "contact_name": form.get("contact_name", ""),
             },
             {key: form.get(key, default) for key, default in RECEIPT_CFG_DEFAULTS.items()},
         )
     if receipt is None:
         return (
-            {"client_id": "", "quote_id": "", "subject": "", "issue_date": date.today().isoformat(), "number": ""},
+            {"client_id": "", "quote_id": "", "subject": "", "issue_date": date.today().isoformat(), "number": "", "contact_name": ""},
             dict(RECEIPT_CFG_DEFAULTS),
         )
     return (
         {
             "client_id": str(receipt["client_id"] or ""), "quote_id": str(receipt["quote_id"] or ""),
             "subject": receipt["subject"], "issue_date": receipt["issue_date"], "number": receipt["number"],
+            "contact_name": json.loads(receipt["client_snapshot"] or "{}").get("contact_name", ""),
         },
         {**RECEIPT_CFG_DEFAULTS, **json.loads(receipt["tax_config"] or "{}")},
     )

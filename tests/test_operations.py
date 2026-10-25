@@ -496,7 +496,8 @@ def test_accepted_quote_stores_signed_copy_and_links_receipt_with_supplier_brand
     assert "IT00TESTBANK0000000000000000" in receipt_text
     assert "Firma" in receipt_text
     assert len(receipt_reader.pages[0].images) >= 2
-    assert "Importo inserito (netto)" in receipt_text
+    assert "Importo inserito" not in receipt_text
+    assert "Ritenuta d'acconto (20%)" in receipt_text
 
 
 def test_issued_receipt_stays_immutable_but_can_be_deleted_with_linked_quote(user_client):

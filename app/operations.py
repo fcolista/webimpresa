@@ -391,8 +391,9 @@ def quote_new():
         require_csrf()
         try:
             client_id, snapshot = _snapshot(request.form)
-            lines = parse_quote_lines(request.form)
             withholding_rate = request.form.get("withholding_rate", "0")
+            amount_mode = request.form.get("amount_mode", "gross")
+            lines = parse_quote_lines(request.form, amount_mode, withholding_rate)
             totals = quote_totals(lines, withholding_rate)
             issue_date = request.form.get("issue_date", "")
             year = date.fromisoformat(issue_date).year
@@ -408,7 +409,7 @@ def quote_new():
                     """INSERT INTO quotes(number,year,client_id,client_snapshot,status,issue_date,valid_until,payment_terms,notes,commercial_terms,tax_config,totals,provider_snapshot,created_by)
                        VALUES(?,?,?,?,'draft',?,?,?,?,?,?,?,?,?)""",
                     (number, year, client_id, json.dumps(snapshot), issue_date, valid_until, payment_terms, notes, commercial_terms,
-                     json.dumps({"withholding_rate": withholding_rate}), json.dumps(totals), json.dumps(provider), g_user_id()),
+                     _quote_tax_config(withholding_rate, amount_mode, lines), json.dumps(totals), json.dumps(provider), g_user_id()),
                 )
                 quote_id = cur.lastrowid
                 _insert_quote_lines(db, quote_id, lines)
@@ -432,8 +433,9 @@ def quote_edit(quote_id):
         require_csrf()
         try:
             client_id, snapshot = _snapshot(request.form)
-            lines = parse_quote_lines(request.form)
             rate = request.form.get("withholding_rate", "0")
+            amount_mode = request.form.get("amount_mode", "gross")
+            lines = parse_quote_lines(request.form, amount_mode, rate)
             totals = quote_totals(lines, rate)
             issue_date = request.form.get("issue_date", "")
             year = date.fromisoformat(issue_date).year
@@ -447,7 +449,7 @@ def quote_edit(quote_id):
                 _limited(request.form.get("payment_terms", ""), 500, "Condizioni di pagamento"),
                 _limited(request.form.get("notes", ""), 4000, "Note"),
                 _limited(request.form.get("commercial_terms", ""), 4000, "Condizioni commerciali"),
-                json.dumps({"withholding_rate": rate}), json.dumps(totals), json.dumps(provider), year, quote_id,
+                _quote_tax_config(rate, amount_mode, lines), json.dumps(totals), json.dumps(provider), year, quote_id,
             )
             with transaction() as db:
                 if number is None:
@@ -464,6 +466,13 @@ def quote_edit(quote_id):
             flash(str(exc), "error")
     clients_list = get_db().execute("SELECT id,kind,name,surname FROM clients WHERE archived=0 ORDER BY name LIMIT 500").fetchall()
     return render_template("quote_form.html", quote=quote, lines=saved_lines, clients=clients_list, issue_date=quote["issue_date"])
+
+
+def _quote_tax_config(rate, amount_mode, lines):
+    config = {"withholding_rate": rate, "amount_mode": amount_mode}
+    if amount_mode == "net":
+        config["entered_unit_prices_cents"] = [line["entered_unit_price_cents"] for line in lines]
+    return json.dumps(config)
 
 
 def _insert_quote_lines(db, quote_id, lines):

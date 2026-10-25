@@ -35,7 +35,12 @@ def _rate_cents(base_cents: int, rate_bp: int) -> int:
     )
 
 
-def parse_quote_lines(form):
+def parse_quote_lines(form, amount_mode: str = "gross", withholding_rate: str = "0"):
+    if amount_mode not in {"gross", "net"}:
+        raise ValueError("Scegli se i prezzi inseriti sono lordi o netti.")
+    rate_bp = int(decimal_value(withholding_rate or "0", "Ritenuta", minimum=0, maximum=100) * 100)
+    if amount_mode == "net" and rate_bp >= 10000:
+        raise ValueError("Non è possibile calcolare un importo netto con una ritenuta del 100%.")
     descriptions = form.getlist("description[]")
     quantities = form.getlist("quantity[]")
     prices = form.getlist("unit_price[]")
@@ -55,6 +60,12 @@ def parse_quote_lines(form):
             raise ValueError(f"Riga {position + 1}: descrizione obbligatoria (massimo 500 caratteri).")
         qty = decimal_value(quantity, f"Quantità riga {position + 1}", minimum="0.001", maximum="1000000")
         unit_price = cents(decimal_value(price, f"Prezzo riga {position + 1}", minimum=0, maximum="100000000"))
+        entered_unit_price = unit_price
+        if amount_mode == "net" and withholding == "1" and rate_bp:
+            unit_price = int(
+                (Decimal(unit_price) * Decimal(10000) / Decimal(10000 - rate_bp))
+                .quantize(Decimal("1"), rounding=ROUND_HALF_UP)
+            )
         discount_bp = int(decimal_value(discount or "0", "Sconto", minimum=0, maximum=100) * 100)
         vat_bp = int(decimal_value(vat or "0", "IVA", minimum=0, maximum=100) * 100)
         gross = cents(qty * money(unit_price))
@@ -65,6 +76,7 @@ def parse_quote_lines(form):
             "description": description,
             "quantity": str(qty),
             "unit_price_cents": unit_price,
+            "entered_unit_price_cents": entered_unit_price,
             "discount_bp": discount_bp,
             "vat_bp": vat_bp,
             "withholding": int(withholding == "1"),

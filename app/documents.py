@@ -8,7 +8,7 @@ from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib.units import mm
-from reportlab.platypus import Image, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+from reportlab.platypus import Image, KeepTogether, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
 from .branding import client_label, decode_logo
 
@@ -101,7 +101,7 @@ def _document_header(story, title, number, client, provider, styles, line_kind, 
     ):
         if client.get(key):
             story.append(Paragraph(f"<b>{label}:</b> {_text(client[key])}", styles["BodyText"]))
-    for contact in client.get("contacts", []):
+    for contact in (client.get("contacts", []) if line_kind == "quote" else []):
         contact_name = " ".join(
             value for value in (contact.get("first_name"), contact.get("last_name")) if value
         ) or contact.get("name", "")
@@ -206,22 +206,22 @@ def _pdf(title: str, number: str, client: dict, provider: dict, lines: list[dict
         ):
             if document.get(key):
                 story.extend([Spacer(1, 3 * mm), Paragraph(f"<b>{label}:</b> {_text(document[key])}", styles["BodyText"])])
-    elif any(provider.get(key) for key in ("provider_account_holder", "provider_bank_name", "provider_iban", "provider_bic")):
-        story.extend([
-            Spacer(1, 8 * mm),
-            Paragraph("Estremi per il pagamento", styles["Heading3"]),
-            _payment_paragraph(provider, styles),
-        ])
 
     if line_kind == "receipt":
         signature = decode_logo(provider.get("signature_data") or signature_data)
         if signature:
-            story.extend([
+            story.append(KeepTogether([
                 Spacer(1, 12 * mm),
-                Paragraph("Firma del prestatore", styles["BodyText"]),
+                Paragraph("Firma", styles["BodyText"]),
                 Spacer(1, 2 * mm),
-                Image(BytesIO(signature), width=48 * mm, height=22 * mm, kind="proportional"),
-            ])
+                Image(BytesIO(signature), width=48 * mm, height=22 * mm, kind="proportional", hAlign="LEFT"),
+            ]))
+        if any(provider.get(key) for key in ("provider_account_holder", "provider_bank_name", "provider_iban", "provider_bic")):
+            story.append(KeepTogether([
+                Spacer(1, 10 * mm),
+                Paragraph("Estremi per il pagamento", styles["Heading3"]),
+                _payment_paragraph(provider, styles),
+            ]))
 
     doc.build(story)
     return buffer.getvalue()

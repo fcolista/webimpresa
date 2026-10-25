@@ -494,7 +494,7 @@ def test_accepted_quote_stores_signed_copy_and_links_receipt_with_supplier_brand
     assert "Professionista Demo" in receipt_text
     assert "fornitore@pec.example.test" in receipt_text
     assert "IT00TESTBANK0000000000000000" in receipt_text
-    assert "Firma del prestatore" in receipt_text
+    assert "Firma" in receipt_text
     assert len(receipt_reader.pages[0].images) >= 2
     assert "Importo inserito (netto)" in receipt_text
 

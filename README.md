@@ -54,7 +54,7 @@ receipts in one persistent workspace.
 - Estimate prices on withholding lines can be entered as **net** amounts: the
   server grosses them up so the net due after withholding equals the entered
   amount, and the PDF labels the amounts as gross ("Compenso lordo").
-- The **Report** page summarizes issued receipts per year: totals by month
+- The **Report** page summarizes issued receipts marked as paid (by payment date) per year: totals by month
   (for withholding payments) and by client (for certifications). Drafts are
   excluded. CSV exports (semicolon separated, decimal comma, UTF-8 with BOM,
   spreadsheet-formula safe) are available for the receipt list and for both

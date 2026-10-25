@@ -185,6 +185,10 @@ MIGRATIONS = [
         ON clients(vat_number)
         WHERE archived=0 AND vat_number IS NOT NULL AND vat_number!='';
     """,
+    """
+    ALTER TABLE receipts ADD COLUMN paid_date TEXT;
+    CREATE INDEX receipts_paid_idx ON receipts(paid_date);
+    """,
 ]
 
 

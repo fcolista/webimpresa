@@ -33,15 +33,15 @@ def _requested_year(years):
 
 def _available_years():
     rows = get_db().execute(
-        "SELECT DISTINCT CAST(strftime('%Y', issue_date) AS INTEGER) AS y FROM receipts WHERE status='issued' ORDER BY y DESC"
+        "SELECT DISTINCT CAST(strftime('%Y', paid_date) AS INTEGER) AS y FROM receipts WHERE status='issued' AND paid_date IS NOT NULL ORDER BY y DESC"
     ).fetchall()
     return [row["y"] for row in rows]
 
 
 def _issued_receipts(year):
     rows = get_db().execute(
-        """SELECT id,number,issue_date,client_id,client_snapshot,subject,totals FROM receipts
-           WHERE status='issued' AND strftime('%Y', issue_date)=? ORDER BY issue_date,number""",
+        """SELECT id,number,issue_date,paid_date,client_id,client_snapshot,subject,totals FROM receipts
+           WHERE status='issued' AND paid_date IS NOT NULL AND strftime('%Y', paid_date)=? ORDER BY paid_date,number""",
         (str(year),),
     ).fetchall()
     records = []
@@ -52,7 +52,8 @@ def _issued_receipts(year):
             "id": row["id"],
             "number": row["number"],
             "issue_date": row["issue_date"],
-            "month": int(row["issue_date"][5:7]),
+            "paid_date": row["paid_date"],
+            "month": int(row["paid_date"][5:7]),
             "client_key": row["client_id"] if row["client_id"] is not None else (client.get("tax_code") or client.get("vat_number") or client_label(client)),
             "client": client_label(client),
             "tax_code": client.get("tax_code", ""),
@@ -141,11 +142,11 @@ def report_csv(kind):
     if kind == "receipts":
         return _csv_response(
             f"ricevute-{year}.csv",
-            ["Numero", "Data", "Cliente", "Codice fiscale", "Partita IVA", "Oggetto", "Compenso lordo", "Contributo",
+            ["Numero", "Data", "Data pagamento", "Cliente", "Codice fiscale", "Partita IVA", "Oggetto", "Compenso lordo", "Contributo",
              "Rimborsi spese", "Bollo", "Base ritenuta", "Ritenuta d'acconto", "Totale documento", "Netto corrisposto"],
-            [[r["number"], r["issue_date"], r["client"], r["tax_code"], r["vat_number"], r["subject"], r["services"],
+            [[r["number"], r["issue_date"], r["paid_date"], r["client"], r["tax_code"], r["vat_number"], r["subject"], r["services"],
               r["contribution"], r["expenses"], r["stamp"], r["withholding_base"], r["withholding"], r["gross"], r["net_due"]]
-             for r in records] + [["Totale", "", "", "", "", "", summary["totals"]["services"], summary["totals"]["contribution"],
+             for r in records] + [["Totale", "", "", "", "", "", "", summary["totals"]["services"], summary["totals"]["contribution"],
                                    summary["totals"]["expenses"], summary["totals"]["stamp"], summary["totals"]["withholding_base"],
                                    summary["totals"]["withholding"], summary["totals"]["gross"], summary["totals"]["net_due"]]],
         )

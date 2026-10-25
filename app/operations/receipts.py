@@ -25,11 +25,11 @@ def receipts():
     if query:
         needle = f"%{escape_like(query)}%"
         rows = get_db().execute(
-            "SELECT id,number,status,issue_date,subject,client_snapshot,totals FROM receipts WHERE number LIKE ? OR client_snapshot LIKE ? ORDER BY issue_date DESC LIMIT 250",
+            "SELECT id,number,status,issue_date,paid_date,subject,client_snapshot,totals FROM receipts WHERE number LIKE ? OR client_snapshot LIKE ? ORDER BY issue_date DESC LIMIT 250",
             (needle, needle),
         ).fetchall()
     else:
-        rows = get_db().execute("SELECT id,number,status,issue_date,subject,client_snapshot,totals FROM receipts ORDER BY issue_date DESC LIMIT 250").fetchall()
+        rows = get_db().execute("SELECT id,number,status,issue_date,paid_date,subject,client_snapshot,totals FROM receipts ORDER BY issue_date DESC LIMIT 250").fetchall()
     return render_template("receipts.html", receipts=rows, query=query)
 
 
@@ -188,7 +188,7 @@ def receipt_detail(receipt_id):
     receipt, lines = _get_receipt(receipt_id)
     linked_quote = get_db().execute("SELECT id,number FROM quotes WHERE id=?", (receipt["quote_id"],)).fetchone() if receipt["quote_id"] else None
     return render_template("receipt_detail.html", receipt=receipt, lines=lines,
-                           client=json.loads(receipt["client_snapshot"]), totals=json.loads(receipt["totals"]), linked_quote=linked_quote)
+                           client=json.loads(receipt["client_snapshot"]), totals=json.loads(receipt["totals"]), linked_quote=linked_quote, today=date.today().isoformat())
 
 
 @bp.post("/receipts/<int:receipt_id>/delete")
@@ -215,6 +215,38 @@ def receipt_issue(receipt_id):
         if cur.rowcount != 1:
             abort(409, "La ricevuta non è più una bozza.")
     flash("Ricevuta emessa e resa non modificabile.", "success")
+    return redirect(url_for("operations.receipt_detail", receipt_id=receipt_id))
+
+
+@bp.post("/receipts/<int:receipt_id>/paid")
+@login_required("user")
+def receipt_paid(receipt_id):
+    require_csrf()
+    receipt, _lines = _get_receipt(receipt_id)
+    paid_date = request.form.get("paid_date", "") or date.today().isoformat()
+    try:
+        _validate_date(paid_date, label="Data pagamento")
+        if paid_date < receipt["issue_date"]:
+            raise ValueError("La data di pagamento non può precedere la data della ricevuta.")
+    except ValueError as exc:
+        flash(str(exc), "error")
+        return redirect(url_for("operations.receipt_detail", receipt_id=receipt_id))
+    with transaction() as db:
+        cur = db.execute("UPDATE receipts SET paid_date=?,updated_at=CURRENT_TIMESTAMP WHERE id=? AND status='issued'", (paid_date, receipt_id))
+        if cur.rowcount != 1:
+            abort(409, "Solo una ricevuta emessa può essere segnata come pagata.")
+    flash("Ricevuta segnata come pagata: ora è inclusa nei report.", "success")
+    return redirect(url_for("operations.receipt_detail", receipt_id=receipt_id))
+
+
+@bp.post("/receipts/<int:receipt_id>/unpaid")
+@login_required("user")
+def receipt_unpaid(receipt_id):
+    require_csrf()
+    _get_receipt(receipt_id)
+    with transaction() as db:
+        db.execute("UPDATE receipts SET paid_date=NULL,updated_at=CURRENT_TIMESTAMP WHERE id=?", (receipt_id,))
+    flash("Pagamento annullato: la ricevuta non è più inclusa nei report.", "success")
     return redirect(url_for("operations.receipt_detail", receipt_id=receipt_id))
 
 

@@ -6,7 +6,7 @@ from tests.conftest import csrf
 from tests.test_operations import create_client
 
 
-def make_receipt(client, client_id, amount, issue_date, *, issue=True, subject="Consulenza"):
+def make_receipt(client, client_id, amount, issue_date, *, issue=True, paid=True, subject="Consulenza"):
     response = client.post("/receipts/new", data={
         "_csrf": csrf(client), "client_id": str(client_id), "issue_date": issue_date, "subject": subject,
         "withholding_rate": "20", "contribution_rate": "0", "stamp_amount": "0", "stamp_threshold": "77.47",
@@ -15,6 +15,8 @@ def make_receipt(client, client_id, amount, issue_date, *, issue=True, subject="
     assert response.status_code == 302
     if issue:
         assert client.post(response.location + "/issue", data={"_csrf": csrf(client)}).status_code == 302
+    if issue and paid:
+        assert client.post(response.location + "/paid", data={"_csrf": csrf(client), "paid_date": issue_date}).status_code == 302
     return response.location
 
 
@@ -115,3 +117,27 @@ def test_invalid_client_keeps_contacts(user_client):
     page = response.data.decode()
     assert response.status_code == 200
     assert 'value="Maria"' in page and 'value="Rossi"' in page and 'value="Azienda"' in page
+
+
+def test_receipt_enters_report_only_after_payment(user_client):
+    client_id = create_client(user_client, name="Cliente Pagamento", tax_code="CCCCCC33C33C333C")
+    url = make_receipt(user_client, client_id, "1000", "2026-05-10", paid=False)
+    assert "Nessuna ricevuta pagata nel 2026" in user_client.get("/reports?year=2026").data.decode()
+    assert "Da pagare" in user_client.get("/receipts").data.decode()
+
+    early = user_client.post(url + "/paid", data={"_csrf": csrf(user_client), "paid_date": "2026-05-01"})
+    assert early.status_code == 302
+    assert "Nessuna ricevuta pagata nel 2026" in user_client.get("/reports?year=2026").data.decode()
+
+    user_client.post(url + "/paid", data={"_csrf": csrf(user_client), "paid_date": "2026-06-15"})
+    page = user_client.get("/reports?year=2026").data.decode()
+    assert "Giugno" in page and "Maggio" not in page and "€ 200,00" in page
+
+    user_client.post(url + "/unpaid", data={"_csrf": csrf(user_client)})
+    assert "Nessuna ricevuta pagata nel 2026" in user_client.get("/reports?year=2026").data.decode()
+
+
+def test_draft_receipt_cannot_be_marked_paid(user_client):
+    client_id = create_client(user_client, name="Cliente Bozza", tax_code="DDDDDD44D44D444D")
+    url = make_receipt(user_client, client_id, "100", "2026-05-10", issue=False)
+    assert user_client.post(url + "/paid", data={"_csrf": csrf(user_client), "paid_date": "2026-05-11"}).status_code == 409

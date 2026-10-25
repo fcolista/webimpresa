@@ -51,6 +51,14 @@ receipts in one persistent workspace.
   information, not bank/payment account coordinates. Logo and provider data
   are snapshotted for new documents; older records use current branding where
   no snapshot exists.
+- Estimate prices on withholding lines can be entered as **net** amounts: the
+  server grosses them up so the net due after withholding equals the entered
+  amount, and the PDF labels the amounts as gross ("Compenso lordo").
+- The **Report** page summarizes issued receipts per year: totals by month
+  (for withholding payments) and by client (for certifications). Drafts are
+  excluded. CSV exports (semicolon separated, decimal comma, UTF-8 with BOM,
+  spreadsheet-formula safe) are available for the receipt list and for both
+  withholding summaries.
 
 ## Explicit limits
 
@@ -88,6 +96,10 @@ receipts in one persistent workspace.
 
 ## Architecture and technology choices
 
+- **Code layout:** `app/operations/` is a package with one module per area
+  (`clients`, `quotes`, `receipts`, `reports`, `mailing`, `dashboard`) sharing
+  one blueprint and common helpers in `common.py`. Line-level amount
+  calculations live in `app/finance.py`.
 - **Flask + Jinja + small vanilla JavaScript/CSS:** the source estimate app
   already uses Flask successfully. Server-rendered pages avoid a second API
   stack, SPA runtime, node build chain and extra client-side copies of fiscal
@@ -289,7 +301,9 @@ Or run locally with `pytest -q`. Check pinned dependencies with:
 pip-audit -r requirements.txt
 ```
 
-Review advisories, update pins deliberately and repeat the full test/build cycle.
+The release workflow runs the same audit and stops publication if a runtime
+dependency has a known advisory. Review advisories, update pins deliberately and
+repeat the full test/build cycle.
 An audit result is a point-in-time check, not a guarantee that the application
 is vulnerability-free.
 

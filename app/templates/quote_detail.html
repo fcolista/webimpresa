@@ -2,7 +2,7 @@
 {% block title %}{{ quote.number }} · WebImpresa{% endblock %}
 {% block content %}
 <div class="page-heading">
-  <div><div class="eyebrow">Preventivo · {{ quote.status }}</div><h1>{{ quote.number }}</h1><p class="muted">{{ client|client_label }} · {{ quote.issue_date }}{% if quote.valid_until %} · Valido fino al {{ quote.valid_until }}{% endif %}</p></div>
+  <div><div class="eyebrow">Preventivo · {{ quote.status|status_label }}</div><h1>{{ quote.number }}</h1><p class="muted">{{ client|client_label }} · {{ quote.issue_date }}{% if quote.valid_until %} · Valido fino al {{ quote.valid_until }}{% endif %}</p></div>
   <div class="actions"><a class="button secondary" href="{{ url_for('operations.quote_download', quote_id=quote.id) }}">Scarica PDF</a><a class="button secondary" href="{{ url_for('operations.send_document_email', kind='quote', document_id=quote.id) }}">Invia email</a>{% if quote.status=='draft' %}<a class="button primary" href="{{ url_for('operations.quote_edit', quote_id=quote.id) }}">Modifica bozza</a>{% endif %}</div>
 </div>
 <section class="card">

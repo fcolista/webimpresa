@@ -231,3 +231,5 @@ tbody tr:last-child td { border-bottom: 0; }
 @media(prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; }
 }
+.line-row.has-error, .receipt-line-row.has-error { outline: 2px solid #d4503f; outline-offset: 4px; border-radius: 8px; background: #fff8f7; }
+input.invalid, select.invalid { border-color: #d4503f; background: #fff4f2; }

@@ -4,6 +4,14 @@ from flask import g
 
 from .db import get_db
 
+STATUS_LABELS = {
+    "draft": "Bozza",
+    "sent": "Inviato",
+    "accepted": "Accettato",
+    "rejected": "Rifiutato",
+    "expired": "Scaduto",
+    "issued": "Emessa",
+}
 COLOR_RE = re.compile(r"^#[0-9a-fA-F]{6}$")
 
 
@@ -33,3 +41,7 @@ def escape_like(value: str) -> str:
 def current_user_id():
     user = g.get("user")
     return user["id"] if user else None
+
+
+def status_label(value):
+    return STATUS_LABELS.get(value, value)

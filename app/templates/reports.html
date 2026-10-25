@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}Report ritenute · WebImpresa{% endblock %}
+{% macro eur(cents) %}€ {{ '{:,.2f}'.format(cents / 100).replace(',', '§').replace('.', ',').replace('§', '.') }}{% endmacro %}
+{% block content %}
+<div class="page-heading"><div><div class="eyebrow">Commercialista</div><h1>Report ritenute {{ year }}</h1><p class="muted">Calcolato sulle sole ricevute emesse nell'anno. Le bozze non sono incluse. Le ritenute d'acconto si versano entro il 16 del mese successivo al pagamento.</p></div></div>
+<form class="search" method="get"><label>Anno<select name="year">{% for y in years %}<option value="{{ y }}" {% if y==year %}selected{% endif %}>{{ y }}</option>{% endfor %}</select></label><button class="button secondary" type="submit">Mostra</button></form>
+{% if summary.totals.count %}
+<div class="stats">
+  <div class="stat"><span>Ricevute emesse</span><strong>{{ summary.totals.count }}</strong></div>
+  <div class="stat"><span>Compensi lordi</span><strong>{{ eur(summary.totals.services) }}</strong></div>
+  <div class="stat"><span>Ritenute trattenute</span><strong>{{ eur(summary.totals.withholding) }}</strong></div>
+  <div class="stat"><span>Netto corrisposto</span><strong>{{ eur(summary.totals.net_due) }}</strong></div>
+</div>
+<section class="card"><div class="section-heading"><h2>Per mese (versamenti)</h2><a class="button secondary compact" href="{{ url_for('operations.report_csv', kind='withholding-months', year=year) }}">Scarica CSV</a></div>
+<div class="table-wrap"><table><thead><tr><th>Mese</th><th>Ricevute</th><th>Compensi lordi</th><th>Base ritenuta</th><th>Ritenuta</th><th>Netto corrisposto</th></tr></thead><tbody>
+{% for m in summary.months %}<tr><td>{{ m.name }}</td><td>{{ m.count }}</td><td>{{ eur(m.services) }}</td><td>{{ eur(m.withholding_base) }}</td><td>{{ eur(m.withholding) }}</td><td>{{ eur(m.net_due) }}</td></tr>{% endfor %}
+<tr><th>Totale</th><th>{{ summary.totals.count }}</th><th>{{ eur(summary.totals.services) }}</th><th>{{ eur(summary.totals.withholding_base) }}</th><th>{{ eur(summary.totals.withholding) }}</th><th>{{ eur(summary.totals.net_due) }}</th></tr>
+</tbody></table></div></section>
+<section class="card"><div class="section-heading"><h2>Per cliente (certificazione)</h2><a class="button secondary compact" href="{{ url_for('operations.report_csv', kind='withholding-clients', year=year) }}">Scarica CSV</a></div>
+<div class="table-wrap"><table><thead><tr><th>Cliente</th><th>Codice fiscale / P. IVA</th><th>Ricevute</th><th>Compensi lordi</th><th>Base ritenuta</th><th>Ritenuta</th><th>Netto corrisposto</th></tr></thead><tbody>
+{% for c in summary.clients %}<tr><td>{{ c.client }}</td><td>{{ c.tax_code or c.vat_number or '—' }}</td><td>{{ c.count }}</td><td>{{ eur(c.services) }}</td><td>{{ eur(c.withholding_base) }}</td><td>{{ eur(c.withholding) }}</td><td>{{ eur(c.net_due) }}</td></tr>{% endfor %}
+</tbody></table></div></section>
+<div class="form-actions"><a class="button primary" href="{{ url_for('operations.report_csv', kind='receipts', year=year) }}">Scarica elenco ricevute (CSV)</a></div>
+<p class="muted">I file CSV usano il punto e virgola come separatore e la virgola decimale, e si aprono direttamente in Excel o LibreOffice.</p>
+{% else %}
+<section class="card"><p class="empty">Nessuna ricevuta emessa nel {{ year }}.</p></section>
+{% endif %}
+{% endblock %}

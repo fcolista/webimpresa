@@ -55,6 +55,9 @@ def create_app(test_config: dict | None = None) -> Flask:
         import json
         return json.loads(value)
 
+    from .ui import status_label
+    app.template_filter("status_label")(status_label)
+
     @app.template_filter("client_label")
     def client_label_filter(client):
         from .branding import client_label

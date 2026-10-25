@@ -10,6 +10,7 @@ from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib.units import mm
 from reportlab.platypus import Image, KeepTogether, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
+from .finance import hydrate_quote_line
 from .branding import client_label, decode_logo
 
 
@@ -101,20 +102,12 @@ def _document_header(story, title, number, client, provider, styles, line_kind, 
     ):
         if client.get(key):
             story.append(Paragraph(f"<b>{label}:</b> {_text(client[key])}", styles["BodyText"]))
-    for contact in (client.get("contacts", []) if line_kind == "quote" else []):
-        contact_name = " ".join(
-            value for value in (contact.get("first_name"), contact.get("last_name")) if value
-        ) or contact.get("name", "")
-        name_role = " · ".join(value for value in (contact_name, contact.get("role")) if value)
-        details = " · ".join(
-            value for value in (contact.get("email"), contact.get("phone"), contact.get("mobile_phone"))
-            if value
-        )
-        if name_role or details:
-            story.append(Paragraph(
-                f"<b>Referente:</b> {_text(name_role)}" + (f" · {_text(details)}" if details else ""),
-                styles["BodyText"],
-            ))
+    contacts = client.get("contacts", []) if line_kind == "quote" else []
+    if contacts:
+        first = contacts[0]
+        contact_name = " ".join(v for v in (first.get("first_name"), first.get("last_name")) if v) or first.get("name", "")
+        if contact_name:
+            story.append(Paragraph(f"<b>Referente:</b> {_text(contact_name)}", styles["BodyText"]))
     story.append(Spacer(1, 7 * mm))
 
 
@@ -128,8 +121,15 @@ def _pdf(title: str, number: str, client: dict, provider: dict, lines: list[dict
     styles = getSampleStyleSheet()
     story = []
     _document_header(story, title, number, client, provider, styles, line_kind, logo_data, document or {})
+    document = document or {}
+    gross_up = (
+        line_kind == "quote"
+        and json.loads(document.get("tax_config") or "{}").get("amount_mode") == "net"
+        and bool(totals.get("withholding_cents", 0))
+    )
     if line_kind == "quote":
-        rows = [["Descrizione", "Quantità", "Prezzo unit. netto", "Totale netto"]]
+        rows = [["Descrizione", "Quantità", "Compenso lordo unit." if gross_up else "Prezzo unit. netto",
+                 "Totale lordo" if gross_up else "Totale netto"]]
         for line in lines:
             rows.append([
                 Paragraph(_text(line["description"]), styles["BodyText"]),
@@ -198,6 +198,15 @@ def _pdf(title: str, number: str, client: dict, provider: dict, lines: list[dict
     ]))
     story.append(totals_table)
 
+    if gross_up:
+        story.extend([
+            Spacer(1, 3 * mm),
+            Paragraph(
+                "Gli importi lordi sono calcolati in modo che, dedotta la ritenuta d'acconto, "
+                "l'importo netto da corrispondere sia quello concordato.",
+                styles["BodyText"],
+            ),
+        ])
     if line_kind == "quote":
         for label, key in (
             ("Condizioni di pagamento", "payment_terms"),
@@ -228,14 +237,7 @@ def _pdf(title: str, number: str, client: dict, provider: dict, lines: list[dict
 
 
 def quote_pdf(quote, lines, provider=None, logo_data=""):
-    from decimal import Decimal, ROUND_HALF_UP
-    hydrated = []
-    for line in lines:
-        item = dict(line)
-        gross = int((Decimal(item["quantity"]) * Decimal(item["unit_price_cents"]) / 100).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP) * 100)
-        discount = int((Decimal(gross) * Decimal(item["discount_bp"]) / 10000).quantize(Decimal("1"), rounding=ROUND_HALF_UP))
-        item["net_cents"] = gross - discount
-        hydrated.append(item)
+    hydrated = [hydrate_quote_line(dict(line)) for line in lines]
     provider_data = provider or json.loads(quote["provider_snapshot"] or "{}")
     return _pdf(
         "Preventivo", quote["number"], json.loads(quote["client_snapshot"]), provider_data,

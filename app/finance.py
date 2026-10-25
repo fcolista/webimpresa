@@ -6,6 +6,15 @@ from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 CENT = Decimal("0.01")
 
 
+class LineError(ValueError):
+    """Validation error tied to a specific line (0-based) and form field."""
+
+    def __init__(self, message, row=None, field=None):
+        super().__init__(message)
+        self.row = row
+        self.field = field
+
+
 def decimal_value(value: str, field: str, *, minimum=None, maximum=None) -> Decimal:
     try:
         number = Decimal(value.replace(",", ".").strip())
@@ -35,6 +44,23 @@ def _rate_cents(base_cents: int, rate_bp: int) -> int:
     )
 
 
+def hydrate_quote_line(item):
+    """Add gross, discount and net amounts (in cents) to a stored quote line."""
+    gross = cents(Decimal(str(item["quantity"])) * money(item["unit_price_cents"]))
+    discount = _rate_cents(gross, item["discount_bp"])
+    item["gross_cents"] = gross
+    item["discount_cents"] = discount
+    item["net_cents"] = gross - discount
+    return item
+
+
+def _line_value(row, field, label, value, **limits):
+    try:
+        return decimal_value(value if value not in (None, "") else "0", f"{label} riga {row + 1}", **limits)
+    except ValueError as exc:
+        raise LineError(str(exc), row, field) from None
+
+
 def parse_quote_lines(form, amount_mode: str = "gross", withholding_rate: str = "0"):
     if amount_mode not in {"gross", "net"}:
         raise ValueError("Scegli se i prezzi inseriti sono lordi o netti.")
@@ -57,17 +83,17 @@ def parse_quote_lines(form, amount_mode: str = "gross", withholding_rate: str = 
     ):
         description = description.strip()
         if not description or len(description) > 500:
-            raise ValueError(f"Riga {position + 1}: descrizione obbligatoria (massimo 500 caratteri).")
-        qty = decimal_value(quantity, f"Quantità riga {position + 1}", minimum="0.001", maximum="1000000")
-        unit_price = cents(decimal_value(price, f"Prezzo riga {position + 1}", minimum=0, maximum="100000000"))
+            raise LineError(f"Riga {position + 1}: descrizione obbligatoria (massimo 500 caratteri).", position, "description")
+        qty = _line_value(position, "quantity", "Quantità", quantity, minimum="0.001", maximum="1000000")
+        unit_price = cents(_line_value(position, "unit_price", "Prezzo", price, minimum=0, maximum="100000000"))
         entered_unit_price = unit_price
         if amount_mode == "net" and withholding == "1" and rate_bp:
             unit_price = int(
                 (Decimal(unit_price) * Decimal(10000) / Decimal(10000 - rate_bp))
                 .quantize(Decimal("1"), rounding=ROUND_HALF_UP)
             )
-        discount_bp = int(decimal_value(discount or "0", "Sconto", minimum=0, maximum=100) * 100)
-        vat_bp = int(decimal_value(vat or "0", "IVA", minimum=0, maximum=100) * 100)
+        discount_bp = int(_line_value(position, "discount", "Sconto", discount, minimum=0, maximum=100) * 100)
+        vat_bp = int(_line_value(position, "vat", "IVA", vat, minimum=0, maximum=100) * 100)
         gross = cents(qty * money(unit_price))
         discount_cents = _rate_cents(gross, discount_bp)
         net = gross - discount_cents
@@ -119,10 +145,10 @@ def parse_receipt_lines(form):
     for pos, (description, amount, kind) in enumerate(zip(descriptions, amounts, kinds)):
         description = description.strip()
         if not description or len(description) > 500:
-            raise ValueError(f"Riga {pos + 1}: descrizione obbligatoria (massimo 500 caratteri).")
+            raise LineError(f"Riga {pos + 1}: descrizione obbligatoria (massimo 500 caratteri).", pos, "description")
         if kind not in {"service", "expense"}:
-            raise ValueError("Tipo di riga non valido.")
-        amount_cents = cents(decimal_value(amount, f"Importo riga {pos + 1}", minimum=0, maximum="100000000"))
+            raise LineError(f"Riga {pos + 1}: tipo di riga non valido.", pos, "kind")
+        amount_cents = cents(_line_value(pos, "amount", "Importo", amount, minimum=0, maximum="100000000"))
         lines.append({"position": pos, "description": description, "amount_cents": amount_cents, "kind": kind})
     return lines
 

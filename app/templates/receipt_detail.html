@@ -2,7 +2,7 @@
 {% block title %}{{ receipt.number }} · WebImpresa{% endblock %}
 {% block content %}
 <div class="page-heading">
-  <div><div class="eyebrow">Ricevuta occasionale · {{ receipt.status }}</div><h1>{{ receipt.number }}</h1><p class="muted">{{ client|client_label }} · {{ receipt.issue_date }}</p></div>
+  <div><div class="eyebrow">Ricevuta occasionale · {{ receipt.status|status_label }}</div><h1>{{ receipt.number }}</h1><p class="muted">{{ client|client_label }} · {{ receipt.issue_date }}</p></div>
   <div class="actions"><a class="button secondary" href="{{ url_for('operations.receipt_download', receipt_id=receipt.id) }}">Scarica PDF</a><a class="button secondary" href="{{ url_for('operations.send_document_email', kind='receipt', document_id=receipt.id) }}">Invia email</a>{% if receipt.status=='draft' %}<a class="button primary" href="{{ url_for('operations.receipt_edit', receipt_id=receipt.id) }}">Modifica bozza</a>{% endif %}</div>
 </div>
 <section class="card stack">

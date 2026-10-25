@@ -1,45 +1,40 @@
 {% extends "base.html" %}
 {% block title %}{{ 'Modifica preventivo' if quote else 'Nuovo preventivo' }} · WebImpresa{% endblock %}
+{% macro bad(row, field) %}{% if row.error==field %} class="invalid" aria-invalid="true"{% endif %}{% endmacro %}
+{% macro line_row(row) %}
+    <div class="line-row{% if row.error %} has-error{% endif %}">
+      <label class="wide">Descrizione<input name="description[]" required maxlength="500" value="{{ row.description }}"{{ bad(row, 'description') }}></label>
+      <label>Quantità<input name="quantity[]" type="number" min="0.001" step="0.001" value="{{ row.quantity }}" required{{ bad(row, 'quantity') }}></label>
+      <label>Prezzo unitario (€)<input name="unit_price[]" type="number" min="0" step="0.01" value="{{ row.unit_price }}" required{{ bad(row, 'unit_price') }}></label>
+      <label>Sconto %<input name="discount[]" type="number" min="0" max="100" step="0.01" value="{{ row.discount }}"{{ bad(row, 'discount') }}></label>
+      <label>IVA %<input name="vat[]" type="number" min="0" max="100" step="0.01" value="{{ row.vat }}"{{ bad(row, 'vat') }}></label>
+      <label>Ritenuta<select name="withholding[]"><option value="0">No</option><option value="1" {% if row.withholding=='1' %}selected{% endif %}>Sì</option></select></label>
+      <button class="button danger remove-line" type="button" aria-label="Rimuovi voce">Rimuovi</button>
+    </div>
+{% endmacro %}
 {% block content %}
-{% set cfg = (quote.tax_config|from_json) if quote else {} %}
-{% set net_mode = cfg.get('amount_mode')=='net' %}
-<div class="page-heading"><div><div class="eyebrow">Preventivi</div><h1>{{ 'Modifica bozza' if quote else 'Nuovo preventivo' }}</h1><p class="muted">Il prezzo unitario si intende netto, al netto dell'IVA. Importi e imposte vengono ricalcolati dal server.</p></div><a class="button subtle" href="{{ url_for('operations.quotes') }}">Indietro</a></div>
+<div class="page-heading"><div><div class="eyebrow">Preventivi</div><h1>{{ 'Modifica bozza' if quote else 'Nuovo preventivo' }}</h1><p class="muted">Il prezzo unitario si intende al netto dell'IVA. Importi e imposte vengono ricalcolati dal server.</p></div><a class="button subtle" href="{{ url_for('operations.quotes') }}">Indietro</a></div>
 <form method="post" class="card stack"><input type="hidden" name="_csrf" value="{{ csrf() }}">
   <div class="form-grid quote-metadata">
-    <label class="quote-client-field">Cliente<select name="client_id" required><option value="">Seleziona cliente</option>{% for c in clients %}<option value="{{ c.id }}" {% if quote and quote.client_id==c.id %}selected{% endif %}>{{ c|client_label }}</option>{% endfor %}</select></label>
-    <label>Data emissione<input class="quote-date" type="date" name="issue_date" required value="{{ issue_date }}"></label>
-    <label>Valido fino al<input class="quote-date" type="date" name="valid_until" value="{{ quote.valid_until if quote else '' }}"></label>
-    <label class="quote-withholding-field">Ritenuta d'acconto (%)<input class="quote-withholding" name="withholding_rate" type="number" min="0" max="100" step="0.01" value="{{ (quote.tax_config|from_json).withholding_rate if quote else '0' }}"></label>
-    <label>Prezzi delle voci con ritenuta<select name="amount_mode"><option value="gross" {% if not net_mode %}selected{% endif %}>Lordi, prima della ritenuta</option><option value="net" {% if net_mode %}selected{% endif %}>Netti che desidero ricevere dopo la ritenuta</option></select></label>
+    <label class="quote-client-field">Cliente<select name="client_id" required><option value="">Seleziona cliente</option>{% for c in clients %}<option value="{{ c.id }}" {% if values.client_id==c.id|string %}selected{% endif %}>{{ c|client_label }}</option>{% endfor %}</select></label>
+    <label>Data emissione<input class="quote-date" type="date" name="issue_date" required value="{{ values.issue_date }}"></label>
+    <label>Valido fino al<input class="quote-date" type="date" name="valid_until" value="{{ values.valid_until }}"></label>
+    <label class="quote-withholding-field">Ritenuta d'acconto (%)<input class="quote-withholding" name="withholding_rate" type="number" min="0" max="100" step="0.01" value="{{ values.withholding_rate }}"></label>
+    <label>Prezzi delle voci con ritenuta<select name="amount_mode"><option value="gross" {% if values.amount_mode!='net' %}selected{% endif %}>Lordi, prima della ritenuta</option><option value="net" {% if values.amount_mode=='net' %}selected{% endif %}>Netti che desidero ricevere dopo la ritenuta</option></select></label>
   </div>
   <div class="section-heading"><h2>Voci del preventivo</h2><button class="button secondary" type="button" id="add-line">Aggiungi voce</button></div>
   <div id="quote-lines" class="line-list">
-  {% for line in lines %}
-    <div class="line-row">
-      <label class="wide">Descrizione<input name="description[]" required maxlength="500" value="{{ line.description }}"></label>
-      <label>Quantità<input name="quantity[]" type="number" min="0.001" step="0.001" value="{{ line.quantity }}"></label>
-      <label>Prezzo unitario netto (€)<input name="unit_price[]" type="number" min="0" step="0.01" value="{{ '%.2f'|format((cfg.entered_unit_prices_cents[loop.index0] if net_mode and cfg.entered_unit_prices_cents and loop.index0 < cfg.entered_unit_prices_cents|length else line.unit_price_cents)/100) }}"></label>
-      <label>Sconto %<input name="discount[]" type="number" min="0" max="100" step="0.01" value="{{ line.discount_bp/100 }}"></label>
-      <label>IVA %<input name="vat[]" type="number" min="0" max="100" step="0.01" value="{{ line.vat_bp/100 }}"></label>
-      <label>Ritenuta<select name="withholding[]"><option value="0">No</option><option value="1" {% if line.withholding %}selected{% endif %}>Sì</option></select></label>
-      <button class="button danger remove-line" type="button" aria-label="Rimuovi voce">Rimuovi</button>
-    </div>
-  {% else %}
-    <div class="line-row">
-      <label class="wide">Descrizione<input name="description[]" required maxlength="500"></label><label>Quantità<input name="quantity[]" type="number" min="0.001" step="0.001" value="1" required></label>
-      <label>Prezzo unitario netto (€)<input name="unit_price[]" type="number" min="0" step="0.01" value="0" required></label><label>Sconto %<input name="discount[]" type="number" min="0" max="100" step="0.01" value="0"></label>
-      <label>IVA %<input name="vat[]" type="number" min="0" max="100" step="0.01" value="0"></label><label>Ritenuta<select name="withholding[]"><option value="0">No</option><option value="1">Sì</option></select></label><button class="button danger remove-line" type="button">Rimuovi</button>
-    </div>
-  {% endfor %}
+  {% for row in rows %}{{ line_row(row) }}{% endfor %}
   </div>
-  <div class="form-grid"><label>Condizioni di pagamento<input name="payment_terms" maxlength="500" value="{{ quote.payment_terms if quote else '' }}"></label><label>Note<textarea name="notes" rows="2" maxlength="4000">{{ quote.notes if quote else '' }}</textarea></label><label class="span-2">Condizioni commerciali<textarea name="commercial_terms" rows="3" maxlength="4000">{{ quote.commercial_terms if quote else '' }}</textarea></label></div>
+  <div class="form-grid"><label>Condizioni di pagamento<input name="payment_terms" maxlength="500" value="{{ values.payment_terms }}"></label><label>Note<textarea name="notes" rows="2" maxlength="4000">{{ values.notes }}</textarea></label><label class="span-2">Condizioni commerciali<textarea name="commercial_terms" rows="3" maxlength="4000">{{ values.commercial_terms }}</textarea></label></div>
   <div class="form-actions"><button class="button primary" type="submit">Salva bozza</button></div>
 </form>
-<template id="line-template"><div class="line-row"><label class="wide">Descrizione<input name="description[]" required maxlength="500"></label><label>Quantità<input name="quantity[]" type="number" min="0.001" step="0.001" value="1" required></label><label>Prezzo unitario netto (€)<input name="unit_price[]" type="number" min="0" step="0.01" value="0" required></label><label>Sconto %<input name="discount[]" type="number" min="0" max="100" step="0.01" value="0"></label><label>IVA %<input name="vat[]" type="number" min="0" max="100" step="0.01" value="0"></label><label>Ritenuta<select name="withholding[]"><option value="0">No</option><option value="1">Sì</option></select></label><button class="button danger remove-line" type="button">Rimuovi</button></div></template>
+<template id="line-template">{{ line_row({'description': '', 'quantity': '1', 'unit_price': '0', 'discount': '0', 'vat': '0', 'withholding': '0'}) }}</template>
 <script nonce="{{ g.csp_nonce }}">
 document.querySelector('form.card').addEventListener('submit',event=>{const b=event.submitter;if(b)setTimeout(()=>{b.disabled=true},0)});
 const lineList=document.getElementById('quote-lines');
 document.getElementById('add-line').addEventListener('click',()=>lineList.append(document.getElementById('line-template').content.cloneNode(true)));
 lineList.addEventListener('click',event=>{if(event.target.closest('.remove-line')){const rows=lineList.querySelectorAll('.line-row');if(rows.length>1)event.target.closest('.line-row').remove()}});
+const invalid=lineList.querySelector('.invalid');if(invalid){invalid.scrollIntoView({block:'center'});invalid.focus()}
 </script>
 {% endblock %}

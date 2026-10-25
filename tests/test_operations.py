@@ -10,7 +10,7 @@ from pypdf import PdfReader
 from conftest import csrf
 
 
-def create_client(user_client, *, name="Studio Prova", tax_code="ABCDEF1234567890"):
+def create_client(user_client, *, name="Studio Prova", tax_code="ABCDEF1234567890", vat_number="IT12345678901"):
     response = user_client.post("/clients/new", data={
         "_csrf": csrf(user_client),
         "kind": "company",
@@ -22,7 +22,7 @@ def create_client(user_client, *, name="Studio Prova", tax_code="ABCDEF123456789
         "contact_phone[]": [""],
         "contact_mobile[]": ["3331234567"],
         "tax_code": tax_code,
-        "vat_number": "IT12345678901",
+        "vat_number": vat_number,
         "address": "Via Roma 1",
         "postal_code": "00100",
         "city": "Roma",
